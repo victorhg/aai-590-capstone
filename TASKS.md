@@ -13,11 +13,11 @@
 - [ ] Download LibriSpeech `test-clean` subset (~75 utterances)
 - [ ] Download CommonVoice sample (10-20 multilingual utterances)
 - [ ] Create `src/data` directory structure
-- [ ] Implement audio loading script (ensure 16kHz resampling)
-- [ ] Implement audio normalization utils (float32, range [-1, 1])
+- [x] Implement audio loading script (ensure 16kHz resampling)
+- [x] Implement audio normalization utils (float32, range [-1, 1])
 
 # Exploratory Data Analysis (EDA) [NOT DONE]
-- [ ] Create `notebooks/01_explore_dataset.ipynb` for interactive analysis
+- [x] Create `notebooks/01_explore_dataset.ipynb` for interactive analysis
 - [ ] Visualize waveforms and Mel-spectrograms of 5 random LibriSpeech samples
 - [ ] Analyze audio duration distribution to determine optimal UAP vector length (e.g., 30s vs max duration)
 - [ ] Check amplitude statistics (min, max, mean) to confirm normalization needs
@@ -32,7 +32,7 @@
 - [ ] Store baseline transcriptions for reference
 - [ ] Verify SNR calculation function against reference implementation (ensure log10 math is correct)
 
-# PGD Attack Implementation [NOT DONE]
+# PGD Attack Implementation [DONE]
 - [x] Create `notebooks/03_pgd_attack.ipynb` for explanation and evidence of work
 - [x] Implement `src/attacks/pgd.py` structure
 - [x] Implement gradient computation loop using PyTorch `autograd`
