@@ -2,12 +2,12 @@
 
 ## Week 1: Foundation, Setup & EDA
 
-# Environment Setup & Library Installation [NOT DONE]
-- [ ] Create Python 3.10+ virtual environment
-- [ ] Install `openai-whisper` and `speechbrain`
-- [ ] Install `torch` with CUDA/MPS support
-- [ ] Install analysis and audio tools: `librosa`, `jiwer`, `soundfile`, `numpy`, `matplotlib`
-- [ ] Verify GPU availability and memory access
+# Environment Setup & Library Installation [DONE]
+- [x] Create Python 3.10+ virtual environment
+- [x] Install `openai-whisper` and `speechbrain`
+- [x] Install `torch` with CUDA/MPS support
+- [x] Install analysis and audio tools: `librosa`, `jiwer`, `soundfile`, `numpy`, `matplotlib`
+- [x] Verify GPU availability and memory access
 
 # Dataset Acquisition & Preprocessing [NOT DONE]
 - [ ] Download LibriSpeech `test-clean` subset (~75 utterances)

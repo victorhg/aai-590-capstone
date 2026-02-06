@@ -1,0 +1,2 @@
+- Week 1: Created requirements.txt with torch, whisper, speechbrain, librosa, etc.
+- Initial setup prepared for GPU/CUDA usage.

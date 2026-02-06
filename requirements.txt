@@ -1,21 +1,25 @@
-# Core Deep Learning & ASR
+# Core Deep Learning
 torch>=2.0.0
+torchaudio>=2.0.0
+
+# ASR Models
 openai-whisper>=20231117
 speechbrain
 
 # Audio Processing
 librosa>=0.10.0
 soundfile>=0.12.0
-numpy>=1.24.0
+scipy
 
-# Metrics
+# Evaluation & Metrics
 jiwer
+numpy
+scikit-learn
 
 # Visualization
-matplotlib>=3.7.0
-seaborn>=0.12.0
+matplotlib
 
-# Data Handling
-tqdm>=4.65.0
-pandas>=2.0.0
-scipy>=1.10.0
+# Utilities
+tqdm
+huggingface_hub
+datasets
