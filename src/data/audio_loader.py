@@ -1,77 +1,52 @@
-"""
-Audio loading and preprocessing utilities.
-Ensures compatibility with Whisper (16kHz, float32, [-1, 1]).
-"""
-
-import librosa
+import torch
 import numpy as np
+import librosa
 import soundfile as sf
-from typing import Tuple, Optional
-import os
+from typing import Union
 
-def load_audio(path: str, sr: int = 16000) -> np.ndarray:
+def load_audio(file_path: str, target_sr: int = 16000) -> torch.Tensor:
     """
-    Load an audio file and ensure it's in the correct format.
+    Load an audio file and normalize it for Whisper.
+    
+    Steps:
+    1. Load audio using librosa (resampling handled by librosa or sf).
+    2. Convert to float32.
+    3. Normalize to [-1.0, 1.0] range.
     
     Args:
-        path: Path to the audio file.
-        sr: Target sampling rate (default 16000 for Whisper).
-    
+        file_path: Path to the audio file.
+        target_sr: Target sample rate (Whisper default: 16000).
+        
     Returns:
-        Audio waveform as a numpy array of dtype float32.
+        torch.Tensor: Normalized audio tensor of shape (samples,).
     """
-    # Load audio file
-    y, orig_sr = librosa.load(path, sr=sr)
-    return y.astype(np.float32)
+    try:
+        # Load audio. librosa automatically resamples if 'sr' is provided
+        y, sr = librosa.load(file_path, sr=target_sr)
+        
+        # Normalize to [-1.0, 1.0]
+        # librosa.load already returns normalized float, but we enforce it
+        y = np.clip(y, -1.0, 1.0)
+        
+        # Convert to torch tensor
+        # Whisper expects float32 input
+        audio_tensor = torch.from_numpy(y).float()
+        
+        return audio_tensor
+        
+    except Exception as e:
+        raise RuntimeError(f"Error loading audio file {file_path}: {e}")
 
-def resample_audio(audio: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
+def get_audio_duration(file_path: str) -> float:
     """
-    Resample audio to a target sampling rate.
-    
-    Args:
-        audio: Input audio waveform.
-        orig_sr: Original sampling rate.
-        target_sr: Target sampling rate.
-    
-    Returns:
-        Resampled audio waveform.
+    Get duration of an audio file in seconds without loading it.
     """
-    return librosa.resample(audio, orig_sr=orig_sr, target_sr=target_sr).astype(np.float32)
+    try:
+        info = sf.info(file_path)
+        return info.duration
+    except Exception as e:
+        raise RuntimeError(f"Error getting audio info for {file_path}: {e}")
 
-def normalize_audio(audio: np.ndarray) -> np.ndarray:
-    """
-    Normalize audio to the range [-1, 1].
-    
-    Args:
-        audio: Input audio waveform (assumed to be in the correct range or PCM).
-    
-    Returns:
-        Normalized audio waveform.
-    """
-    # librosa.load usually handles PCM to [-1, 1] conversion,
-    # but we enforce it here to be safe.
-    return np.clip(audio / np.max(np.abs(audio)), -1.0, 1.0)
-
-def get_audio_info(path: str) -> Tuple[int, int]:
-    """
-    Get duration and sample rate of an audio file.
-    
-    Args:
-        path: Path to the audio file.
-    
-    Returns:
-        Tuple of (duration in seconds, sample rate).
-    """
-    y, sr = librosa.load(path, sr=None)
-    return len(y) / sr, sr
-
-def save_audio(path: str, audio: np.ndarray, sr: int = 16000):
-    """
-    Save an audio file.
-    
-    Args:
-        path: Output path.
-        audio: Audio waveform.
-        sr: Sample rate.
-    """
-    sf.write(path, audio, sr)
+if __name__ == "__main__":
+    # Test loading
+    print("Audio loader module loaded successfully.")
