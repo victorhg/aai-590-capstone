@@ -87,7 +87,7 @@
 
 ## Experimental / Optional
 
-# Targeted CW Attack (Time Permitting) [NOT DONE]
-- [ ] Implement weighted CTC loss for targeted phrases
-- [ ] Implement Carlini-Wagner optimization loop ($L_2$ penalty)
-- [ ] Test on 5 utterances with specific target phrases
+# Targeted CW Attack (Time Permitting) [DONE]
+- [x] Implement weighted CTC loss for targeted phrases
+- [x] Implement Carlini-Wagner optimization loop ($L_2$ penalty)
+- [x] Test on 5 utterances with specific target phrases
