@@ -81,7 +81,9 @@
 - [x] Generate audio samples (Clean vs. Adversarial) for demo
 - [x] Plot final Success Rate vs SNR curves
 - [x] Write technical report documenting methodology and results
-- [x] Create `notebooks/06_Tech_Report.md` for explanation
+
+## Technical report [NOT DONE]
+- [ ] Create `notebooks/07_Tech_Report.md` with a general view of the arquitecture and the technical decisions made in this project
 
 ---
 
