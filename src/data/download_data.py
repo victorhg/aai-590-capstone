@@ -4,11 +4,10 @@ from torch.utils.data import Dataset
 from typing import List
 
 # Constants
-LIBRI_SPEECH_URL = "http://www.openslr.org/resources/librispeech"
-COMMON_VOICE_BASE_URL = "https://voice.mozilla.org/en/datasets"
+LIBRI_URL = "test-clean" # We use the small 'test-clean' set for this project
 
 class AudioDataset(Dataset):
-    """Generic Dataset for audio files."""
+    """Simple wrapper to load audio from a list of paths."""
     def __init__(self, file_list: List[str]):
         self.file_list = file_list
 
@@ -18,31 +17,31 @@ class AudioDataset(Dataset):
     def __getitem__(self, idx):
         return self.file_list[idx]
 
-def download_librispeech_sample(output_dir: str, n_samples: int = 10):
+def download_librispeech_sample(output_dir: str) -> str:
     """
-    Placeholder for LibriSpeech download.
-    LibriSpeech is large (hundreds of GB). We download a small subset if possible,
-    or instruct the user to manually download.
+    Downloads and extracts the LibriSpeech test-clean dataset using Torchaudio.
     
-    Note: For this project, manual download of 'test-clean' is recommended due to size.
+    Args:
+        output_dir: The root directory to save data (e.g., '../data')
+        
+    Returns:
+        str: The absolute path to the downloaded dataset folder.
     """
-    libri_dir = os.path.join(output_dir, "librispeech")
-    os.makedirs(libri_dir, exist_ok=True)
+    print(f"Checking/Downloading LibriSpeech ({LIBRI_URL}) to: {output_dir}")
+    os.makedirs(output_dir, exist_ok=True)
     
-    print(f"LibriSpeech data should ideally be downloaded manually to: {libri_dir}")
-    print("Dataset structure: librispeech/test-clean/...\n")
+    # Torchaudio handles downloading and extraction automatically
+    # It checks md5 checksums, so it won't re-download if files exist.
+    dataset = torchaudio.datasets.LIBRISPEECH(
+        root=output_dir,
+        url=LIBRI_URL,
+        download=True
+    )
     
-    # Ideally, we would download specific files here using wget or aria2c.
-    # Since we cannot run shell commands directly, we return the path structure.
-    return libri_dir
-
-def download_common_voice_sample(output_dir: str):
-    """
-    Placeholder for CommonVoice download.
-    """
-    print("CommonVoice download link: https://voice.mozilla.org/en/datasets")
-    print("Please download the 'en' (English) subset for this project.")
-    return output_dir
+    # The standard path torchaudio creates is root/LibriSpeech
+    final_path = os.path.join(output_dir, "LibriSpeech", LIBRI_URL)
+    return final_path
 
 if __name__ == "__main__":
-    print("Download utilities loaded.")
+    # Allow running this script directly from terminal
+    download_librispeech_sample("../../data")

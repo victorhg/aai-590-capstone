@@ -18,6 +18,9 @@ scikit-learn
 
 # Visualization
 matplotlib
+transformers>=4.35.0
+accelerate>=0.20.0
+
 
 # Utilities
 tqdm
