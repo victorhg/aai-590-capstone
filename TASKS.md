@@ -26,19 +26,19 @@
 ## Week 2: Baseline & Untargeted PGD Attack
 
 # Baseline Performance Evaluation [NOT DONE]
-- [ ] Create `notebooks/02_performance_evaluation.ipynb` for explanation
+- [x] Create `notebooks/02_performance_evaluation.ipynb` for explanation
 - [ ] Run Whisper on clean LibriSpeech dataset
 - [ ] Compute and log baseline WER (Word Error Rate) and CER (Character Error Rate)
 - [ ] Store baseline transcriptions for reference
 - [ ] Verify SNR calculation function against reference implementation (ensure log10 math is correct)
 
 # PGD Attack Implementation [NOT DONE]
-- [ ] Create `notebooks/03_pgd_attack.ipynb` for explanation and evidence of work
-- [ ] Implement `src/attacks/pgd.py` structure
-- [ ] Implement gradient computation loop using PyTorch `autograd`
-- [ ] Create wrapper to pass gradients through Whisper's Mel-spectrogram layer
-- [ ] Implement `clip` function to enforce $L_\infty$ or $L_2$ norm constraints
-- [ ] Implement Optimization loop (iterative noise addition) 
+- [x] Create `notebooks/03_pgd_attack.ipynb` for explanation and evidence of work
+- [x] Implement `src/attacks/pgd.py` structure
+- [x] Implement gradient computation loop using PyTorch `autograd`
+- [x] Create wrapper to pass gradients through Whisper's Mel-spectrogram layer
+- [x] Implement `clip` function to enforce $L_\infty$ or $L_2$ norm constraints
+- [x] Implement Optimization loop (iterative noise addition) 
 
 # PGD Experimentation & Tuning [NOT DONE]
 - [ ] Run PGD attack on single utterance
