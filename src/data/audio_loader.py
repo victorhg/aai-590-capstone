@@ -2,7 +2,26 @@ import torch
 import numpy as np
 import librosa
 import soundfile as sf
-from typing import Union
+import os
+import glob
+from typing import Union, List
+
+def get_librispeech_files(data_dir: str = None) -> List[str]:
+    """
+    Find all .flac files in the LibriSpeech dataset directory.
+    
+    Args:
+        data_dir: Optional path to data directory. If None, resolves automatically.
+        
+    Returns:
+        List of absolute file paths.
+    """
+    if data_dir is None:
+        # Resolve default relative to this file: src/data/../../data
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data')
+        
+    search_pattern = os.path.join(data_dir, "**", "*.flac")
+    return glob.glob(search_pattern, recursive=True)
 
 def load_audio(file_path: str, target_sr: int = 16000) -> torch.Tensor:
     """
