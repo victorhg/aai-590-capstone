@@ -9,28 +9,28 @@
 - [x] Install analysis and audio tools: `librosa`, `jiwer`, `soundfile`, `numpy`, `matplotlib`
 - [x] Verify GPU availability and memory access
 
-# Dataset Acquisition & Preprocessing [NOT DONE]
-- [ ] Download LibriSpeech `test-clean` subset (~75 utterances)
-- [ ] Download CommonVoice sample (10-20 multilingual utterances)
-- [ ] Create `src/data` directory structure
+# Dataset Acquisition & Preprocessing [DONE]
+- [x] Download LibriSpeech `test-clean` subset (~75 utterances)
+- [x] Download CommonVoice sample (10-20 multilingual utterances)
+- [x] Create `src/data` directory structure
 - [x] Implement audio loading script (ensure 16kHz resampling)
 - [x] Implement audio normalization utils (float32, range [-1, 1])
 
-# Exploratory Data Analysis (EDA) [NOT DONE]
+# Exploratory Data Analysis (EDA) [DONE]
 - [x] Create `notebooks/01_explore_dataset.ipynb` for interactive analysis
-- [ ] Visualize waveforms and Mel-spectrograms of 5 random LibriSpeech samples
-- [ ] Analyze audio duration distribution to determine optimal UAP vector length (e.g., 30s vs max duration)
-- [ ] Check amplitude statistics (min, max, mean) to confirm normalization needs
-- [ ] Compare frequency markers of "Clean" vs "Noisy" audio (sanity check dummy noise)
+- [x] Visualize waveforms and Mel-spectrograms of 5 random LibriSpeech samples
+- [x] Analyze audio duration distribution to determine optimal UAP vector length (e.g., 30s vs max duration)
+- [x] Check amplitude statistics (min, max, mean) to confirm normalization needs
+- [x] Compare frequency markers of "Clean" vs "Noisy" audio (sanity check dummy noise)
 
 ## Week 2: Baseline & Untargeted PGD Attack
 
-# Baseline Performance Evaluation [NOT DONE]
+# Baseline Performance Evaluation [DONE]
 - [x] Create `notebooks/02_performance_evaluation.ipynb` for explanation
-- [ ] Run Whisper on clean LibriSpeech dataset
-- [ ] Compute and log baseline WER (Word Error Rate) and CER (Character Error Rate)
-- [ ] Store baseline transcriptions for reference
-- [ ] Verify SNR calculation function against reference implementation (ensure log10 math is correct)
+- [x] Run Whisper on clean LibriSpeech dataset
+- [x] Compute and log baseline WER (Word Error Rate) and CER (Character Error Rate)
+- [x] Store baseline transcriptions for reference
+- [x] Verify SNR calculation function against reference implementation (ensure log10 math is correct)
 
 # PGD Attack Implementation [DONE]
 - [x] Create `notebooks/03_pgd_attack.ipynb` for explanation and evidence of work
@@ -40,48 +40,48 @@
 - [x] Implement `clip` function to enforce $L_\infty$ or $L_2$ norm constraints
 - [x] Implement Optimization loop (iterative noise addition) 
 
-# PGD Experimentation & Tuning [NOT DONE]
-- [ ] Run PGD attack on single utterance
-- [ ] Tune hyperparameters: learning rate, epsilon, iterations
-- [ ] Batch process 10 utterances and record WER/SNR
-- [ ] Generate analysis plots: WER vs SNR tradeoff
-- [ ] Update the `notebooks/03_pgd_attack.ipynb` with the results
+# PGD Experimentation & Tuning [DONE]
+- [x] Run PGD attack on single utterance
+- [x] Tune hyperparameters: learning rate, epsilon, iterations
+- [x] Batch process 10 utterances and record WER/SNR
+- [x] Generate analysis plots: WER vs SNR tradeoff
+- [x] Update the `notebooks/03_pgd_attack.ipynb` with the results
 
 ## Week 4-5: Universal Adversarial Perturbations (UAP) - Core
 
-# UAP Training Loop Implementation [NOT DONE]
-- [ ] create the `notebooks/04_uap_training.ipynb` with the results
-- [ ] Initialize global perturbation vector $v$ (zeros)
-- [ ] Implement "Accumulated Gradient" approach over training set
-- [ ] Implement `minimize` step for current audio sample $x_i$
-- [ ] Implement projection step to keep global perturbation $v$ within $\epsilon$-ball
+# UAP Training Loop Implementation [DONE]
+- [x] create the `notebooks/04_uap_training.ipynb` with the results
+- [x] Initialize global perturbation vector $v$ (zeros)
+- [x] Implement "Accumulated Gradient" approach over training set
+- [x] Implement `minimize` step for current audio sample $x_i$
+- [x] Implement projection step to keep global perturbation $v$ within $\epsilon$-ball
 
-# UAP Validation & Tuning [NOT DONE]
-- [ ] Split LibriSpeech into Train (70) and Validation (20) sets
-- [ ] Monitor "Success Rate" (CER > 0.5) during training epochs
-- [ ] Tune `regularization_c` and `SNR_target`
-- [ ] Save best performing Universal Perturbation vector
+# UAP Validation & Tuning [DONE]
+- [x] Split LibriSpeech into Train (70) and Validation (20) sets
+- [x] Monitor "Success Rate" (CER > 0.5) during training epochs
+- [x] Tune `regularization_c` and `SNR_target`
+- [x] Save best performing Universal Perturbation vector
 
 ## Week 5-6: Evaluation & Defense
 
-# Comprehensive Evaluation [NOT DONE]
-- [ ] Create `notebooks/05_defense_evaluation.ipynb` to examplify use
-- [ ] Run Universal Perturbation on full Test set (75 utterances)
-- [ ] Calculate final metrics: Mean WER, Mean CER, Mean SNR, Success Rate
-- [ ] Run Cross-Project evaluation (e.g., test on CommonVoice samples with English perturbation)
+# Comprehensive Evaluation [DONE]
+- [x] Create `notebooks/05_defense_evaluation.ipynb` to examplify use
+- [x] Run Universal Perturbation on full Test set (75 utterances)
+- [x] Calculate final metrics: Mean WER, Mean CER, Mean SNR, Success Rate
+- [x] Run Cross-Project evaluation (e.g., test on CommonVoice samples with English perturbation)
 
-# Defense Mechanism Implementation (Randomized Smoothing) [NOT DONE]
-- [ ] Implement Gaussian noise injection pre-processor
-- [ ] Evaluate defense: Run UAP attack against "smoothed" model
-- [ ] Measure drop in Attack Success Rate vs. increase in Clean WER
+# Defense Mechanism Implementation (Randomized Smoothing) [DONE]
+- [x] Implement Gaussian noise injection pre-processor
+- [x] Evaluate defense: Run UAP attack against "smoothed" model
+- [x] Measure drop in Attack Success Rate vs. increase in Clean WER
 
 ## Week 6: Reporting
 
-# Project Report & Visualization [NOT DONE]
-- [ ] Generate audio samples (Clean vs. Adversarial) for demo
-- [ ] Plot final Success Rate vs SNR curves
-- [ ] Write technical report documenting methodology and results
-- [ ] Create `notebooks/06_Tech_Report.md` for explanation
+# Project Report & Visualization [DONE]
+- [x] Generate audio samples (Clean vs. Adversarial) for demo
+- [x] Plot final Success Rate vs SNR curves
+- [x] Write technical report documenting methodology and results
+- [x] Create `notebooks/06_Tech_Report.md` for explanation
 
 ---
 
