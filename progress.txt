@@ -1,2 +1,7 @@
 - Week 1: Created requirements.txt with torch, whisper, speechbrain, librosa, etc.
 - Initial setup prepared for GPU/CUDA usage.
+- Created `src/data/` directory structure.
+- Implemented `audio_loader.py` for 16kHz resampling and normalization.
+- Added `download_data.py` to handle dataset acquisition (LibriSpeech/CommonVoice).
+- Week 2: Completed baseline performance evaluation notebook. Initialized Whisper model and calculated WER/CER on clean LibriSpeech data.
+
