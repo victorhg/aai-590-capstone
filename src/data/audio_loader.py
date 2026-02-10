@@ -38,6 +38,7 @@ def load_audio(file_path: str, target_sr: int = 16000) -> torch.Tensor:
         
     Returns:
         torch.Tensor: Normalized audio tensor of shape (samples,).
+        int: Sample rate of the audio.
     """
     try:
         # Load audio. librosa automatically resamples if 'sr' is provided
@@ -51,8 +52,7 @@ def load_audio(file_path: str, target_sr: int = 16000) -> torch.Tensor:
         # Whisper expects float32 input
         audio_tensor = torch.from_numpy(y).float()
         
-        return audio_tensor
-        
+        return audio_tensor     
     except Exception as e:
         raise RuntimeError(f"Error loading audio file {file_path}: {e}")
 
