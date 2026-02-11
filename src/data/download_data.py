@@ -34,8 +34,6 @@ def download_librispeech_sample(output_dir: str = None) -> str:
     print(f"Checking/Downloading LibriSpeech ({LIBRI_URL}) to: {output_dir}")
     os.makedirs(output_dir, exist_ok=True)
     
-    # Torchaudio handles downloading and extraction automatically
-    # It checks md5 checksums, so it won't re-download if files exist.
     dataset = torchaudio.datasets.LIBRISPEECH(
         root=output_dir,
         url=LIBRI_URL,

@@ -26,3 +26,6 @@ accelerate>=0.20.0
 tqdm
 huggingface_hub
 datasets
+seaborn
+matplotlib
+jupyter

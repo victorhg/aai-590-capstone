@@ -23,7 +23,10 @@ def get_librispeech_files(data_dir: str = None) -> List[str]:
     search_pattern = os.path.join(data_dir, "**", "*.flac")
     return glob.glob(search_pattern, recursive=True)
 
-def load_audio(file_path: str, target_sr: int = 16000) -> torch.Tensor:
+def load_audio(file_path: str) -> (np.ndarray, int):
+    return librosa.load(file_path, sr=16000)
+
+def load_audio_tensor(file_path: str, target_sr: int = 16000) -> (np.ndarray, torch.Tensor):
     """
     Load an audio file and normalize it for Whisper.
     
@@ -35,8 +38,9 @@ def load_audio(file_path: str, target_sr: int = 16000) -> torch.Tensor:
     Args:
         file_path: Path to the audio file.
         target_sr: Target sample rate (Whisper default: 16000).
-        
+         
     Returns:
+        np.ndarray: Loaded audio array.
         torch.Tensor: Normalized audio tensor of shape (samples,).
         int: Sample rate of the audio.
     """
@@ -52,7 +56,7 @@ def load_audio(file_path: str, target_sr: int = 16000) -> torch.Tensor:
         # Whisper expects float32 input
         audio_tensor = torch.from_numpy(y).float()
         
-        return audio_tensor     
+        return y, audio_tensor     
     except Exception as e:
         raise RuntimeError(f"Error loading audio file {file_path}: {e}")
 

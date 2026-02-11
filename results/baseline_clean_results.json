@@ -1,0 +1,352 @@
+[
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0040.flac",
+    "ground_truth": "they regained their apartment apparently without disturbing the household of gamewell",
+    "transcription": "they regain their apartment apparently without disturbing the household of gainwell.",
+    "wer": 0.18181818181818182,
+    "cer": 0.058823529411764705
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0017.flac",
+    "ground_truth": "rest and be still until i warn you",
+    "transcription": "rest and be still until i warn you.",
+    "wer": 0.125,
+    "cer": 0.029411764705882353
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0001.flac",
+    "ground_truth": "there befell an anxious interview mistress fitzooth arguing for and against the squire's project in a breath",
+    "transcription": "thereby fell an anxious interview, mistress fitzhuth arguing for and against the squires project in a breath.",
+    "wer": 0.35294117647058826,
+    "cer": 0.07407407407407407
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0021.flac",
+    "ground_truth": "they then renewed their journey and under the better light made a safe crossing of the stable roofs",
+    "transcription": "they then renewed their journey, and under the better light made a safe crossing of the stable roofs.",
+    "wer": 0.1111111111111111,
+    "cer": 0.020202020202020204
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0037.flac",
+    "ground_truth": "his tones rang pleasantly on warrenton's ears and forthwith a good fellowship was heralded between them",
+    "transcription": "his tones rang pleasantly on warrington's ears, and forthwith a good fellowship was heralded between them.",
+    "wer": 0.1875,
+    "cer": 0.038834951456310676
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0036.flac",
+    "ground_truth": "robin fitzooth saw that his doubts of warrenton had been unfair and he became ashamed of himself for harboring them",
+    "transcription": "robin fitzhuth saw that his doubts of warrenton had been unfair, and he became ashamed of himself for harboring them.",
+    "wer": 0.15,
+    "cer": 0.034782608695652174
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0020.flac",
+    "ground_truth": "will whispered robin opening his door as he spoke are you ready",
+    "transcription": "will, whispered robin, opening his door as he spoke, are you ready?",
+    "wer": 0.3333333333333333,
+    "cer": 0.06349206349206349
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0000.flac",
+    "ground_truth": "young fitzooth had been commanded to his mother's chamber so soon as he had come out from his converse with the squire",
+    "transcription": "young fitz-ooth had been commanded to his mother's chamber so soon as he had come out from his converse with the squire.",
+    "wer": 0.09090909090909091,
+    "cer": 0.01694915254237288
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0016.flac",
+    "ground_truth": "we will go out together to the bower there is a way down to the court from my window",
+    "transcription": "we will go out together to the bower. there is a way down to the court from my window.",
+    "wer": 0.10526315789473684,
+    "cer": 0.023809523809523808
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0027.flac",
+    "ground_truth": "robin carefully descended the ladder and found himself soon upon firm rocky ground",
+    "transcription": "robin carefully descended the ladder and found himself soon upon firm rocky ground.",
+    "wer": 0.07692307692307693,
+    "cer": 0.012195121951219513
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0031.flac",
+    "ground_truth": "cried he waving the lanthorn before him to make sure that these were no ghosts in front of him",
+    "transcription": "cried he, waving the lanthan before him to make sure that these were no ghosts in front of him.",
+    "wer": 0.15789473684210525,
+    "cer": 0.0425531914893617
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0011.flac",
+    "ground_truth": "as any in england i would say said gamewell proudly that is in his day",
+    "transcription": "as any in england, i would say, said gamewell proudly, that is, in his day.",
+    "wer": 0.3333333333333333,
+    "cer": 0.07142857142857142
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0007.flac",
+    "ground_truth": "he was in deep converse with the clerk and entered the hall holding him by the arm",
+    "transcription": "he was in deep converse with the clerk and entered the hall holding him by the arm.",
+    "wer": 0.058823529411764705,
+    "cer": 0.012195121951219513
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0006.flac",
+    "ground_truth": "never that sir he had said",
+    "transcription": "never that, sir, he had said.",
+    "wer": 0.5,
+    "cer": 0.11538461538461539
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0010.flac",
+    "ground_truth": "dismiss your squire robin and bid me good e e n",
+    "transcription": "dismiss your squire robin and bid me good eating.",
+    "wer": 0.2727272727272727,
+    "cer": 0.10638297872340426
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0030.flac",
+    "ground_truth": "save me masters but you startled me rarely",
+    "transcription": "save me, masters, but you startled me rarely.",
+    "wer": 0.375,
+    "cer": 0.07142857142857142
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0026.flac",
+    "ground_truth": "fitzooth's hand rested at last upon the top rung of a ladder and slowly the truth came to him",
+    "transcription": "fitzuth's hand rested at last upon the top rung of a ladder, and slowly the truth came to him.",
+    "wer": 0.15789473684210525,
+    "cer": 0.043010752688172046
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0033.flac",
+    "ground_truth": "truly such a horse should be worth much in nottingham fair",
+    "transcription": "truly such a horse would be worth much in nodding him fair.",
+    "wer": 0.36363636363636365,
+    "cer": 0.1206896551724138
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0025.flac",
+    "ground_truth": "they were upon the verge of an open trap in the far corner of the hut and stuteley had tripped over the edge of the reversed flap mouth of this pit",
+    "transcription": "they were upon the verge of an open trap in the far corner of the hut, and stutley had tripped over the edge of the reversed flap mouth of this pit.",
+    "wer": 0.0967741935483871,
+    "cer": 0.02040816326530612
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0009.flac",
+    "ground_truth": "tis late and i go myself within a short space",
+    "transcription": "tis late, and i go myself within a short space.",
+    "wer": 0.2,
+    "cer": 0.044444444444444446
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0029.flac",
+    "ground_truth": "from the blackness behind the light they heard a voice warrenton's",
+    "transcription": "from the blackness behind the light they heard a voice. warrantons.",
+    "wer": 0.18181818181818182,
+    "cer": 0.06060606060606061
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0005.flac",
+    "ground_truth": "the lad had checked him then",
+    "transcription": "the lad had checked him then.",
+    "wer": 0.16666666666666666,
+    "cer": 0.03571428571428571
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0013.flac",
+    "ground_truth": "there was no chance to alter his sleeping room to one nearer to gamewell's chamber",
+    "transcription": "there was no chance to alter his sleeping room to one nearer to gamewell's chamber.",
+    "wer": 0.06666666666666667,
+    "cer": 0.012195121951219513
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0012.flac",
+    "ground_truth": "yet he will teach you a few tricks when morning is come",
+    "transcription": "yet he will teach you a few tricks when warning is come.",
+    "wer": 0.16666666666666666,
+    "cer": 0.05454545454545454
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0004.flac",
+    "ground_truth": "but take it whilst i live and wear montfichet's shield in the days when my eyes can be rejoiced by so brave a sight for you will ne'er disgrace our scutcheon i warrant me",
+    "transcription": "but take it whilst i live, and wear montphych\u00e9e's shield in the days when my eyes can be rejoiced by so brave a sight, for you will never disgrace our stuch and i warrant me.",
+    "wer": 0.20588235294117646,
+    "cer": 0.08235294117647059
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0028.flac",
+    "ground_truth": "stuteley was by his side in a flash and then they both began feeling about them to ascertain the shape and character of this vault",
+    "transcription": "stuntley was by his side in the flash, and then they both began feeling about them to ascertain the shape and character of this vault.",
+    "wer": 0.16,
+    "cer": 0.05384615384615385
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0008.flac",
+    "ground_truth": "now to bed boy",
+    "transcription": "now to bed, boy.",
+    "wer": 0.5,
+    "cer": 0.14285714285714285
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0024.flac",
+    "ground_truth": "they moved thereafter cautiously about the hut groping before and about them to find something to show that warrenton had fulfilled his mission",
+    "transcription": "they moved thereafter cautiously about the hut, groping before and about them to find something to show that the warrant had fulfilled his mission.",
+    "wer": 0.17391304347826086,
+    "cer": 0.06293706293706294
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0032.flac",
+    "ground_truth": "enquired robin with his suspicions still upon him",
+    "transcription": "inquired robin with his suspicion still upon him.",
+    "wer": 0.375,
+    "cer": 0.061224489795918366
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0039.flac",
+    "ground_truth": "he implores us to be discreet as the grave in this matter for in sooth his life is in the hollow of our hands",
+    "transcription": "he implores us to be discreet as the grave in this matter, for ensue his life is in the hollow of our hands.",
+    "wer": 0.16666666666666666,
+    "cer": 0.07339449541284404
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0003.flac",
+    "ground_truth": "if for a whim you beggar yourself i cannot stay you",
+    "transcription": "if, for a whim, you beggar yourself, i cannot stay you.",
+    "wer": 0.36363636363636365,
+    "cer": 0.0784313725490196
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0015.flac",
+    "ground_truth": "will cried he softly and stuteley who had chosen his couch across the door of his young master's chamber sprang up at once in answer",
+    "transcription": "will, cried he softly, and stutley, who had chosen his couch across the door of his young master's chamber, sprang up at once an answer.",
+    "wer": 0.24,
+    "cer": 0.05303030303030303
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0035.flac",
+    "ground_truth": "warrenton spoke thus with significance to show robin that he was not to think geoffrey's claims to the estate would be passed by",
+    "transcription": "warranton spoke thus with significance to show robin that he was not to thank jeffrey's claims to the estate would be passed by.",
+    "wer": 0.17391304347826086,
+    "cer": 0.0390625
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0023.flac",
+    "ground_truth": "be not so foolish friend said fitzooth crossly",
+    "transcription": "be not so foolish friend said fitz-ooth crossly.",
+    "wer": 0.25,
+    "cer": 0.043478260869565216
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0019.flac",
+    "ground_truth": "at last all was quiet and black in the courtyard of gamewell",
+    "transcription": "at last, all was quiet and black in the courtyard of gamewell.",
+    "wer": 0.16666666666666666,
+    "cer": 0.03333333333333333
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0018.flac",
+    "ground_truth": "the hours passed wearily by and movement could yet be heard about the hall",
+    "transcription": "the hours passed weirly by, and movement could yet be heard about the hall.",
+    "wer": 0.21428571428571427,
+    "cer": 0.05405405405405406
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0022.flac",
+    "ground_truth": "robin entered the hut dragging the unwilling esquire after him",
+    "transcription": "robin entered the hut, dragging the unwilling esquire after him.",
+    "wer": 0.2,
+    "cer": 0.03225806451612903
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0034.flac",
+    "ground_truth": "nay nay lording answered warrenton with a half laugh",
+    "transcription": "nay, nay, lording! answered warrington with a half laugh.",
+    "wer": 0.5555555555555556,
+    "cer": 0.11538461538461539
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0014.flac",
+    "ground_truth": "presently he crossed the floor of his room with decided step",
+    "transcription": "presently, he crossed the floor of his room with decided step.",
+    "wer": 0.18181818181818182,
+    "cer": 0.03333333333333333
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0002.flac",
+    "ground_truth": "most of all robin thought of his father what would he counsel",
+    "transcription": "most of all, robin thought of his father. what would he counsel?",
+    "wer": 0.25,
+    "cer": 0.04918032786885246
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70970/61-70970-0038.flac",
+    "ground_truth": "the old servant told him quietly as they crept back to gamewell that this passage way led from the hut in the pleasance to sherwood and that geoffrey for the time was hiding with the outlaws in the forest",
+    "transcription": "the old servant told him quietly as they crept back to gamewell that this passageway led from the hut in the pleasants to sherwood, and that jeffrey for the time was hiding with the outlaws in the forest.",
+    "wer": 0.15384615384615385,
+    "cer": 0.03431372549019608
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70968/61-70968-0011.flac",
+    "ground_truth": "he gave way to the others very readily and retreated unperceived by the squire and mistress fitzooth to the rear of the tent",
+    "transcription": "he gave way to the others very readily and retreated unperceived by the squire and mistress fitzuth to the rear of the tent.",
+    "wer": 0.08695652173913043,
+    "cer": 0.024193548387096774
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70968/61-70968-0046.flac",
+    "ground_truth": "nottingham castle was reached and admittance was demanded",
+    "transcription": "nottingham castle was reached, and admittance was demanded.",
+    "wer": 0.25,
+    "cer": 0.03508771929824561
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70968/61-70968-0050.flac",
+    "ground_truth": "he made an effort to hide his condition from them all and robin felt his fingers tighten upon his arm",
+    "transcription": "he made an effort to hide his condition from them all, and robin felt his fingers tighten upon his arm.",
+    "wer": 0.1,
+    "cer": 0.019801980198019802
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70968/61-70968-0007.flac",
+    "ground_truth": "sister nell do you hear these marvels",
+    "transcription": "sister nell, do you hear these marvels?",
+    "wer": 0.2857142857142857,
+    "cer": 0.05405405405405406
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70968/61-70968-0027.flac",
+    "ground_truth": "robin and the little tumbler between them tried to force the squire to stand back and very valiantly did these two comport themselves",
+    "transcription": "robin and the little tumbler between them tried to force the squire to stand back, and very valiantly did these two comport themselves.",
+    "wer": 0.08695652173913043,
+    "cer": 0.015037593984962405
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70968/61-70968-0031.flac",
+    "ground_truth": "silence you knave cried montfichet",
+    "transcription": "silence, you naive cried mont-fichier.",
+    "wer": 0.6,
+    "cer": 0.20588235294117646
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70968/61-70968-0030.flac",
+    "ground_truth": "now be silent on your lives he began but the captured apprentice set up an instant shout",
+    "transcription": "now, be silent on your lives, he began, but the captured apprentice set up an instant shout.",
+    "wer": 0.23529411764705882,
+    "cer": 0.045454545454545456
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70968/61-70968-0026.flac",
+    "ground_truth": "the strollers took their part in it with hearty zest now that they had some chance of beating off their foes",
+    "transcription": "the strollers took their part in it with hardy zest now that they had some chance of beating off their foes.",
+    "wer": 0.09523809523809523,
+    "cer": 0.027777777777777776
+  },
+  {
+    "audio_path": "LibriSpeech/test-clean/61/70968/61-70968-0006.flac",
+    "ground_truth": "but then the picture was gone as quickly as it came",
+    "transcription": "but then the picture was gone as quickly as it came.",
+    "wer": 0.09090909090909091,
+    "cer": 0.0196078431372549
+  }
+]
