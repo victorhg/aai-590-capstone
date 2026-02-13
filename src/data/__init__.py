@@ -16,12 +16,14 @@ from .audio_loader import load_audio, load_audio_tensor, get_audio_duration, get
 from .download_data import download_librispeech_sample, AudioDataset
 
 __all__ = [
-    'load_audio', 
+    'load_audio',
+    'load_audio_tensor',
     'get_audio_duration', 
     'download_librispeech_sample',
     'get_librispeech_files',
     'AudioDataset',
-    'DATA_DIR'
+    'DATA_DIR',
+    'TARGET_SAMPLE_RATE'
 ]
 
 def can_load_dataset() -> bool:
