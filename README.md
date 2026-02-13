@@ -25,39 +25,38 @@ Neekhara, P., Hussain, S., Pandey, P., Dubnov, S., McAuley, J., & Koushanfar, F.
 # Tasks overview
 
 
-## Week 1: Setup & EDA
-
+## Setup & EDA
+- [./notebooks/01_explore_dataset.ipynb](./notebooks/01_explore_dataset.ipynb)
 - Environment Setup & Library Installation
 -  Dataset Acquisition & Preprocessing (LibriSpeech & commonVoice)
 - Exploratory Data Analysis (EDA) 
 	- Visualize waveforms and Mel-spectrograms of 5 random LibriSpeech samples
 
 
-### Week 2: Baseline &  PGD Attack
-
-- Baseline Performance Evaluation
+### Baseline &  PGD Attack
+- [Baseline Performance Evaluation (notebook)](./notebooks/02_performance_evaluation.ipynb)
 	- Run Whisper on clean LibriSpeech dataset
 	- Compute and log baseline WER (Word Error Rate) and CER (Character Error Rate)
 	- Store baseline transcriptions for reference
 	- Verify SNR calculation function against reference implementation (ensure log10 math is correct)
--  PGD Attack Implementation
+-  [PGD Attack Implementation (notebook)](./notebooks/03_pgd_attack.ipynb)
 	- PGD Experimentation & Tuning 
 	- Run PGD attack on batch utterance
 	- Generate analysis plots: WER vs SNR tradeoff
 
-### Week 4-5: Universal Adversarial Perturbations (UAP) 
+## Universal Adversarial Perturbations (UAP) 
 
 - UAP Training Loop Implementation 
 - UAP Validation & Tuning
 
-### Week 5-6: Evaluation & Defense
+## Evaluation & Defense
 
 - Run Universal Perturbation on full Test set (75 utterances)
 	- Calculate final metrics: Mean WER, Mean CER, Mean SNR, Success Rate
 	- Run Cross-Project evaluation (e.g., test on CommonVoice samples with English perturbation)
 
 
-## Week 6-7: Reporting
+## Reporting
 
 - Project Report & Visualization 
 - Generate audio samples (Clean vs. Adversarial) for demo
