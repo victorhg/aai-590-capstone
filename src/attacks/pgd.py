@@ -93,38 +93,30 @@ class PGDAttack:
             adv_audio.requires_grad = True
             
             # Forward pass
-            # Whisper expects input in (1, 1, samples) for float32 input usually
-            # We handle Mel-spectrogram gradient flow here
-            
-            # Note: Whisper's internal preprocessing requires gradients enabled on input
             with torch.enable_grad():
-                output = self.model(adv_audio)
-                logits = output["logits"]
-                
-                # Calculate loss
-                # For untargeted: Maximize loss of original transcription (if available)
-                # For simplified PGD here, we assume a dummy target or just maximize loss
-                # to force errors.
-                # Since we might not have the ground truth text in this simple script,
-                # we use the log-prob of the model's prediction, which is high for clean speech.
-                # We want to lower it.
-                
-                # Simplified: Maximize negative log-probability (or just use raw logits if target text is provided)
-                # For a generic attack, we maximize the negative log-probability of the *current* prediction.
-                # This encourages the model to output something else.
-                loss = -output["probabilities"].max()
+                # Check if model has a dedicated loss function for attacks
+                if hasattr(self.model, "get_loss_for_attack"):
+                    loss = self.model.get_loss_for_attack(adv_audio)
+                else:
+                    # Generic fall-back for transformers models
+                    output = self.model(adv_audio)
+                    logits = output.logits
+                    # Simple untargeted: Maximize uncertainty (entropy) of first token
+                    # or just minimize max logit
+                    probs = F.softmax(logits[:, 0, :], dim=-1)
+                    loss = -torch.max(probs, dim=-1)[0].mean()
                 
             # Compute gradient
-            grad = torch.autograd.grad(loss, adv_audio)[0]
+            grad = torch.autograd.grad(loss, adv_audio, retain_graph=False)[0]
             
-            # Gradient Clipping (often helps stability)
-            grad = torch.clamp(grad, -self.epsilon, self.epsilon)
-            
-            # Update
+            # Update (Sign of gradient)
             if self.attack_type == "untargeted":
+                # We want to maximize the loss (maximize uncertainty)
+                # So we move in the direction of the gradient
                 adv_audio = adv_audio + self.alpha * torch.sign(grad)
             elif self.attack_type == "targeted":
-                # For targeted, we move in opposite direction (minimize loss of target)
+                # We want to minimize the loss (minimize distance to target)
+                # So we move against the gradient
                 adv_audio = adv_audio - self.alpha * torch.sign(grad)
 
             # Project back to epsilon-ball
