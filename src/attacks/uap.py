@@ -37,6 +37,92 @@ class UniversalPerturbation:
         self.batch_size = batch_size
         self.device = next(model.parameters()).device
     
+    def _evaluate_single_sample(self, audio_tensor, perturbation):
+        """
+        Evaluate whether a perturbation fools the model on a single sample.
+        
+        Args:
+            audio_tensor: Clean audio tensor
+            perturbation: Perturbation to apply
+            
+        Returns:
+            dict with keys 'original', 'adversarial', 'is_fooled'
+        """
+        # Get original transcription
+        with torch.no_grad():
+            orig_transcription = self.model.transcribe(audio_tensor)
+        
+        # Apply perturbation
+        perturbed = self._apply_perturbation(audio_tensor, perturbation)
+        
+        # Get adversarial transcription
+        with torch.no_grad():
+            adv_transcription = self.model.transcribe(perturbed)
+        
+        # Check if fooled
+        is_fooled = (orig_transcription != adv_transcription)
+        
+        return {
+            'original': orig_transcription,
+            'adversarial': adv_transcription,
+            'is_fooled': is_fooled
+        }
+    
+    @staticmethod
+    def _apply_perturbation(audio_tensor, perturbation):
+        """
+        Apply perturbation to audio and clamp to valid range.
+        
+        Args:
+            audio_tensor: Clean audio
+            perturbation: Perturbation to add
+            
+        Returns:
+            Perturbed audio clamped to [-1.0, 1.0]
+        """
+        return torch.clamp(audio_tensor + perturbation, -1.0, 1.0)
+    
+    @staticmethod
+    def calculate_fooling_rate(fooled_count, total_count):
+        """
+        Calculate fooling rate with zero-division protection.
+        
+        Args:
+            fooled_count: Number of samples fooled
+            total_count: Total number of samples
+            
+        Returns:
+            Fooling rate (0.0 to 1.0)
+        """
+        return fooled_count / total_count if total_count > 0 else 0.0
+    
+    def _prepare_audio_tensor(self, audio_tensor, target_length):
+        """
+        Prepare audio tensor: ensure correct shape, device, and length.
+        
+        Args:
+            audio_tensor: Input audio tensor
+            target_length: Target audio length in samples
+            
+        Returns:
+            Prepared audio tensor (1, target_length)
+        """
+        # Ensure correct shape
+        if audio_tensor.ndim == 1:
+            audio_tensor = audio_tensor.unsqueeze(0)
+        
+        audio_tensor = audio_tensor.to(self.device)
+        
+        # Pad or crop to target length
+        if audio_tensor.shape[1] < target_length:
+            audio_tensor = torch.nn.functional.pad(
+                audio_tensor, (0, target_length - audio_tensor.shape[1])
+            )
+        else:
+            audio_tensor = audio_tensor[:, :target_length]
+        
+        return audio_tensor
+    
     def generate(self, dataset, audio_length=480000, target_fooling_rate=0.8):
         """
         Train universal perturbation on a dataset.
@@ -80,19 +166,11 @@ class UniversalPerturbation:
                 
                 total_count += 1
                 
-                # Get original transcription
-                with torch.no_grad():
-                    orig_transcription = self.model.transcribe(audio_tensor)
-                
-                # Apply current universal perturbation
-                perturbed = torch.clamp(audio_tensor + v, -1.0, 1.0)
-                
-                # Get adversarial transcription
-                with torch.no_grad():
-                    adv_transcription = self.model.transcribe(perturbed)
+                # Evaluate sample (get original, adversarial, and fooled status)
+                result = self._evaluate_single_sample(audio_tensor, v)
                 
                 # Check if already fooled
-                if orig_transcription != adv_transcription:
+                if result['is_fooled']:
                     fooled_count += 1
                     continue
                 
@@ -105,7 +183,7 @@ class UniversalPerturbation:
                 v = torch.clamp(v, -self.epsilon, self.epsilon)
             
             # Calculate fooling rate
-            fooling_rate = fooled_count / total_count if total_count > 0 else 0
+            fooling_rate = self.calculate_fooling_rate(fooled_count, total_count)
             avg_loss = np.mean(epoch_losses) if epoch_losses else 0
             
             print(f"Fooling Rate: {fooling_rate:.2%} ({fooled_count}/{total_count})")
@@ -148,19 +226,8 @@ class UniversalPerturbation:
             else:
                 audio_tensor = audio_path
             
-            # Ensure correct shape
-            if audio_tensor.ndim == 1:
-                audio_tensor = audio_tensor.unsqueeze(0)
-            
-            audio_tensor = audio_tensor.to(self.device)
-            
-            # Pad or crop to target length
-            if audio_tensor.shape[1] < target_length:
-                audio_tensor = torch.nn.functional.pad(
-                    audio_tensor, (0, target_length - audio_tensor.shape[1])
-                )
-            else:
-                audio_tensor = audio_tensor[:, :target_length]
+            # Prepare audio tensor (shape, device, padding)
+            audio_tensor = self._prepare_audio_tensor(audio_tensor, target_length)
             
             return audio_tensor
             
@@ -229,33 +296,25 @@ class UniversalPerturbation:
             
             total_count += 1
             
-            # Get original transcription
-            with torch.no_grad():
-                orig_transcription = self.model.transcribe(audio_tensor)
+            # Evaluate sample
+            result = self._evaluate_single_sample(audio_tensor, v)
             
-            # Apply perturbation
-            perturbed = torch.clamp(audio_tensor + v, -1.0, 1.0)
-            
-            # Get adversarial transcription
-            with torch.no_grad():
-                adv_transcription = self.model.transcribe(perturbed)
-            
-            # Check if fooled
-            is_fooled = (orig_transcription != adv_transcription)
-            if is_fooled:
+            # Count fooled samples
+            if result['is_fooled']:
                 fooled_count += 1
             
             results_list.append({
                 'audio_path': str(audio_path),
-                'original': orig_transcription,
-                'adversarial': adv_transcription,
-                'fooled': is_fooled
+                'original': result['original'],
+                'adversarial': result['adversarial'],
+                'fooled': result['is_fooled']
             })
         
-        fooling_rate = fooled_count / total_count if total_count > 0 else 0
+        fooling_rate = self.calculate_fooling_rate(fooled_count, total_count)
         
-        # Compute SNR
-        snr = self._compute_snr(v)
+        # Compute SNR (note: UAP SNR is measured against assumed typical audio RMS)
+        # For accurate SNR, pass clean audio samples to compute_snr_universal()
+        snr = self._compute_snr_universal(v)
         
         results = {
             'fooling_rate': fooling_rate,
@@ -273,12 +332,47 @@ class UniversalPerturbation:
         
         return results
     
-    def _compute_snr(self, perturbation):
+    @staticmethod
+    def compute_snr(original, perturbed):
         """
-        Compute Signal-to-Noise Ratio of the perturbation.
+        Compute Signal-to-Noise Ratio (SNR) in dB.
+        Standardized version matching pgd.py signature.
         
         Args:
-            perturbation: Perturbation tensor
+            original: Clean audio (numpy array or torch tensor)
+            perturbed: Adversarial audio (numpy array or torch tensor)
+            
+        Returns:
+            SNR in dB
+        """
+        # Convert to numpy if needed
+        if torch.is_tensor(original):
+            original = original.detach().cpu().numpy()
+        if torch.is_tensor(perturbed):
+            perturbed = perturbed.detach().cpu().numpy()
+        
+        original = original.astype(np.float32)
+        perturbed = perturbed.astype(np.float32)
+        
+        noise = perturbed - original
+        
+        signal_power = np.sum(original ** 2)
+        noise_power = np.sum(noise ** 2)
+        
+        if noise_power == 0:
+            return float('inf')
+        
+        return 10 * np.log10(signal_power / noise_power)
+    
+    def _compute_snr_universal_universal(self, perturbation):
+        """
+        Compute Signal-to-Noise Ratio for universal perturbation.
+        Uses assumed typical audio RMS for signal power estimation.
+        
+        Note: For accurate SNR on specific audio, use compute_snr(original, perturbed).
+        
+        Args:
+            perturbation: Universal perturbation tensor
             
         Returns:
             snr_db: SNR in decibels
@@ -293,6 +387,10 @@ class UniversalPerturbation:
         
         snr = 10 * np.log10(signal_power / noise_power)
         return snr
+    
+    def _to_device(self, tensor):
+        """Transfer tensor to model's device."""
+        return tensor.to(self.device)
     
     def save_perturbation(self, v, filepath):
         """Save universal perturbation to file."""

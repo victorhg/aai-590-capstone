@@ -60,6 +60,10 @@ class CarliniWagnerAttack:
         # Store original model state
         self.model.requires_grad_(False)
         self.model.eval()
+    
+    def _to_device(self, tensor):
+        """Transfer tensor to model's device."""
+        return tensor.to(self.device)
 
     def _tokenize_target(self, processor):
         """Convert target text to input ids."""

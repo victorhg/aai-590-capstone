@@ -205,8 +205,11 @@ class TransferabilityTester:
         """
         results = {}
         
-        # Apply perturbation
-        perturbed = torch.clamp(audio_tensor + perturbation, -1.0, 1.0)
+        # Import standard perturbation helper
+        from src.attacks.uap import UniversalPerturbation
+        
+        # Apply perturbation using standardized method
+        perturbed = UniversalPerturbation._apply_perturbation(audio_tensor, perturbation)
         
         print("\n=== Transferability Test ===")
         
@@ -235,8 +238,9 @@ class TransferabilityTester:
             print(f"  Status: {'✓ FOOLED' if is_fooled else '✗ NOT FOOLED'}")
         
         # Calculate transfer rate
+        from src.attacks.uap import UniversalPerturbation
         fooled_count = sum(1 for r in results.values() if r['fooled'])
-        transfer_rate = fooled_count / len(results) if results else 0
+        transfer_rate = UniversalPerturbation.calculate_fooling_rate(fooled_count, len(results))
         
         print(f"\n--- Transfer Rate: {transfer_rate:.1%} ({fooled_count}/{len(results)}) ---")
         
@@ -278,7 +282,8 @@ class TransferabilityTester:
                     audio_tensor = audio_tensor[:, :audio_length]
                 
                 # Test on each model
-                perturbed = torch.clamp(audio_tensor + perturbation, -1.0, 1.0)
+                from src.attacks.uap import UniversalPerturbation
+                perturbed = UniversalPerturbation._apply_perturbation(audio_tensor, perturbation)
                 
                 for model_name, model in self.models.items():
                     with torch.no_grad():
@@ -294,9 +299,12 @@ class TransferabilityTester:
                 continue
         
         # Compute summary statistics
+        from src.attacks.uap import UniversalPerturbation
         summary = {}
         for model_name, counts in model_results.items():
-            fooling_rate = counts['fooled'] / counts['total'] if counts['total'] > 0 else 0
+            fooling_rate = UniversalPerturbation.calculate_fooling_rate(
+                counts['fooled'], counts['total']
+            )
             summary[model_name] = {
                 'fooling_rate': fooling_rate,
                 'fooled_count': counts['fooled'],

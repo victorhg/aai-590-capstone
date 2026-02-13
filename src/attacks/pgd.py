@@ -45,6 +45,10 @@ class PGDAttack:
         
         # Ensure model is in eval mode for attack
         self.model.eval()
+    
+    def _to_device(self, tensor):
+        """Transfer tensor to model's device."""
+        return tensor.to(self.model.device if hasattr(self.model, 'device') else 'cpu')
 
     def _verify_input_audio(self, audio: torch.Tensor) -> torch.Tensor:
         """
