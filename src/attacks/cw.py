@@ -30,7 +30,7 @@ class CarliniWagnerAttack:
         learning_rate: float = 0.01, 
         iterations: int = 100, 
         alpha: float = 0.01,
-        device: Optional[str] = None
+        device: str = 'cpu'
     ):
         """
         Args:
@@ -49,10 +49,7 @@ class CarliniWagnerAttack:
         self.iterations = iterations
         self.alpha = alpha
         
-        if device:
-            self.device = device
-        else:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = device
             
         self.model.to(self.device)
         self.model.eval()
@@ -62,7 +59,6 @@ class CarliniWagnerAttack:
         self.model.eval()
     
     def _to_device(self, tensor):
-        """Transfer tensor to model's device."""
         return tensor.to(self.device)
 
     def _tokenize_target(self, processor):

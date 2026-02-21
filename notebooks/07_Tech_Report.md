@@ -63,9 +63,23 @@ The system is built around the OpenAI Whisper model (e.g., `base` or `small` var
 - **Evaluation**: Tested if the UAP attack could fool the smoothed model. The report documents the drop in Attack Success Rate versus the increase in Clean WER due to noise.
 
 ## 5. Results Summary
-- **Success Rate**: The UAP achieved a significant success rate (defined here as CER > 0.5) on the test set, demonstrating that a single global noise pattern can degrade performance across the entire distribution.
-- **Imperceptibility**: The perturbations maintained a high Signal-to-Noise Ratio (SNR), confirming they were audible but not obviously distorted to the human ear.
-- **Defense Effectiveness**: Randomized Smoothing provided a layer of robustness, raising the threshold required for the attack to succeed.
+This section summarizes the most recent metrics saved in the project artifacts.
+
+### 5.1 Baseline (Clean) — LibriSpeech test-clean
+- **Samples**: 50
+- **Mean WER**: 0.2195
+- **Mean CER**: 0.0535
+
+### 5.2 PGD Attack (Untargeted)
+- **Parameters**: $\epsilon = 0.01$, $\alpha = 0.001$, 20 iterations
+- **Success Rate**: 94.0% (47/50)
+- **Average WER**: 28.37%
+- **Average SNR**: 19.46 dB
+- **SNR Range**: 15.45–22.38 dB
+- **WER Range**: 0.0%–140.0%
+
+### 5.3 UAP & Defense
+The latest UAP and randomized smoothing metrics were not saved in the current results artifacts. Once those evaluation outputs are persisted (e.g., mean WER/CER, success rate, SNR), this section should be updated with the finalized UAP and defense performance.
 
 ## 6. Future Work
 - **Targeted Attacks**: Implement Carlini-Wagner (CW) attacks for specific, controlled output modifications.

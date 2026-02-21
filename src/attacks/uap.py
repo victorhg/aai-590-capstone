@@ -389,16 +389,11 @@ class UniversalPerturbation:
         return snr
     
     def _to_device(self, tensor):
-        """Transfer tensor to model's device."""
         return tensor.to(self.device)
     
     def save_perturbation(self, v, filepath):
-        """Save universal perturbation to file."""
         torch.save(v, filepath)
-        print(f"Perturbation saved to {filepath}")
     
     def load_perturbation(self, filepath):
-        """Load universal perturbation from file."""
         v = torch.load(filepath, map_location=self.device)
-        print(f"Perturbation loaded from {filepath}")
         return v
