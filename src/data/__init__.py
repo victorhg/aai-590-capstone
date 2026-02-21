@@ -12,13 +12,14 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.
 TARGET_SAMPLE_RATE = 16000  # Whisper's expected sample rate
 
 
-from .audio_loader import load_audio, load_audio_tensor, get_audio_duration, get_librispeech_files
+from .audio_loader import load_audio, load_audio_tensor, get_audio_duration, get_librispeech_files, pad_or_crop_audio
 from .download_data import download_librispeech_sample, AudioDataset
 
 __all__ = [
     'load_audio',
     'load_audio_tensor',
     'get_audio_duration', 
+    'pad_or_crop_audio',
     'download_librispeech_sample',
     'get_librispeech_files',
     'AudioDataset',

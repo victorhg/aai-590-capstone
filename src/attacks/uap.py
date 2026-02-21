@@ -11,6 +11,43 @@ import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 
+from torch.utils.data import Dataset
+
+import src.data as data_loader
+
+class UAPDataset(Dataset):
+    """
+    Dataset for UAP training that preprocesses all audio to a fixed length.
+    
+    This ensures consistent tensor shapes for training the universal perturbation.
+    All audio samples are padded (with zeros) or cropped to match max_duration.
+    
+    Args:
+        files: List of audio file paths
+        max_duration: Target audio length in seconds (should match UAP training length)
+        sample_rate: Audio sample rate in Hz (default: 16000 for Whisper)
+    """
+    def __init__(self, files, max_duration=5.0, sample_rate=16000):
+        self.files = files
+        self.max_duration = max_duration
+        self.sample_rate = sample_rate
+        self.max_samples = int(max_duration * sample_rate)
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        """
+        Load and preprocess audio to fixed length.
+        
+        Returns:
+            audio_tensor: 1D tensor of shape (max_samples,)
+        """
+        path = self.files[idx]
+        _, audio_tensor = data_loader.load_audio_tensor(path)
+        
+        # Pad or crop to fixed length
+        return data_loader.pad_or_crop_audio(audio_tensor, self.max_samples)
 
 class UniversalPerturbation:
     """
@@ -113,15 +150,8 @@ class UniversalPerturbation:
         
         audio_tensor = audio_tensor.to(self.device)
         
-        # Pad or crop to target length
-        if audio_tensor.shape[1] < target_length:
-            audio_tensor = torch.nn.functional.pad(
-                audio_tensor, (0, target_length - audio_tensor.shape[1])
-            )
-        else:
-            audio_tensor = audio_tensor[:, :target_length]
-        
-        return audio_tensor
+        # Pad or crop to target length using the common utility
+        return data_loader.pad_or_crop_audio(audio_tensor, target_length)
     
     def generate(self, dataset, audio_length=480000, target_fooling_rate=0.8):
         """

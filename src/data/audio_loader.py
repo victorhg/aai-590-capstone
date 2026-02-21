@@ -70,6 +70,25 @@ def get_audio_duration(file_path: str) -> float:
     except Exception as e:
         raise RuntimeError(f"Error getting audio info for {file_path}: {e}")
 
+def pad_or_crop_audio(audio_tensor: torch.Tensor, target_length: int) -> torch.Tensor:
+    """
+    Pad or crop an audio tensor to a fixed length in the last dimension.
+    
+    Args:
+        audio_tensor: Input audio waveform (1D or 2D tensor).
+        target_length: Desired number of samples.
+        
+    Returns:
+        Tensor of shape (..., target_length).
+    """
+    samples = audio_tensor.shape[-1]
+    
+    if samples < target_length:
+        return torch.nn.functional.pad(audio_tensor, (0, target_length - samples))
+    elif samples > target_length:
+        return audio_tensor[..., :target_length]
+    return audio_tensor
+
 if __name__ == "__main__":
     # Test loading
     print("Audio loader module loaded successfully.")

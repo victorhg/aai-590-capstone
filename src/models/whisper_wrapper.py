@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import WhisperForConditionalGeneration, WhisperFeatureExtractor, WhisperProcessor
 
+import src.data as data_loader
 # Whisper and Audio Constants
 WHISPER_SAMPLE_RATE = 16000
 WHISPER_N_SAMPLES_30S = 480000  # 30 seconds at 16kHz
@@ -61,13 +62,8 @@ class WhisperASRWithAttack(nn.Module):
         if requires_grad and not audio_tensor.requires_grad:
             audio_tensor.requires_grad = True
         
-        # Pad or crop to exactly n_samples (30 seconds)
-        if audio_tensor.shape[1] < self.n_samples:
-            audio_tensor = torch.nn.functional.pad(
-                audio_tensor, (0, self.n_samples - audio_tensor.shape[1])
-            )
-        else:
-            audio_tensor = audio_tensor[:, :self.n_samples]
+        # Pad or crop to exactly n_samples (30 seconds) using the common utility
+        audio_tensor = data_loader.pad_or_crop_audio(audio_tensor, self.n_samples)
         
         return audio_tensor
     
