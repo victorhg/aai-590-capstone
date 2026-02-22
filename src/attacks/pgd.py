@@ -8,7 +8,7 @@ to generate adversarial perturbations.
 
 import torch
 import torch.nn.functional as F
-import numpy as np
+
 from typing import Tuple, Optional
 import librosa
 
@@ -131,27 +131,4 @@ class PGDAttack:
 
         return adv_audio
 
-def compute_snr(original: np.ndarray, perturbed: np.ndarray) -> float:
-    """
-    Compute Signal-to-Noise Ratio (SNR) in dB.
-    
-    Args:
-        original: Clean audio (numpy array).
-        perturbed: Adversarial audio (numpy array).
-        
-    Returns:
-        SNR in dB.
-    """
-    original = original.astype(np.float32)
-    perturbed = perturbed.astype(np.float32)
-    
-    noise = perturbed - original
-    
-    signal_power = np.sum(original ** 2)
-    noise_power = np.sum(noise ** 2)
-    
-    if noise_power == 0:
-        return float('inf')
-    
-    return 10 * np.log10(signal_power / noise_power)
 

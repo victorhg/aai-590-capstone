@@ -52,7 +52,24 @@ class UniversalPerturbation:
     
     
     def _apply_perturbation(self, audio_tensor, perturbation):
-        return torch.clamp(audio_tensor + perturbation, -1.0, 1.0)
+
+        """
+        Apply UAP to audio with length mismatch handling (AGENTS.md §6).
+        Crops perturbation if audio is shorter, tiles if audio is longer.
+        """
+        audio_len = audio_tensor.shape[-1]
+        uap_len   = perturbation.shape[-1]
+
+        if audio_len < uap_len:
+            v = perturbation[:, :audio_len]
+        elif audio_len > uap_len:
+            num_tiles = (audio_len + uap_len - 1) // uap_len
+            v = perturbation.repeat(1, num_tiles)[:, :audio_len]
+        else:
+            v = perturbation
+
+        # Clamp to prevent clipping artifacts (AGENTS.md §5)
+        return torch.clamp(audio_tensor + v, -1.0, 1.0)
     
     def generate(self, dataset, audio_length=5.0, epochs=10):
 
@@ -134,22 +151,8 @@ class UniversalPerturbation:
             'is_fooled': is_fooled
         }
     
-    def apply_uap_to_audio(self, audio_tensor, uap_vector, target_length=None):
-        """Tile uap_vector to match audio length, add it, and clamp to [-1, 1]."""
-        if audio_tensor.ndim == 1:
-            audio_tensor = audio_tensor.unsqueeze(0)
-
-        if target_length is None:
-            target_length = audio_tensor.shape[-1]
-
-        uap_length = uap_vector.shape[-1]
-        num_tiles = (target_length + uap_length - 1) // uap_length
-        uap_tiled = uap_vector.repeat(1, num_tiles)[:, :target_length]
-
-        audio_tensor = data_loader.pad_or_crop_audio(audio_tensor, target_length)
-        return torch.clamp(audio_tensor + uap_tiled.to(audio_tensor.device), -1.0, 1.0)
-    
-
+    def apply_uap_to_audio(self, audio: torch.Tensor, perturbation: torch.Tensor) -> torch.Tensor:
+        return self._apply_perturbation(audio.to(self.device), perturbation.to(self.device))
 
 
     
