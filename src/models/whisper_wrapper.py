@@ -168,6 +168,7 @@ class WhisperASRWithAttack(nn.Module):
             # Generate tokens using model's generate method
             predicted_ids = self.model.generate(
                 log_mels,
+                language="en",
                 max_length=max_length,
                 num_beams=1,  # Greedy decoding
                 do_sample=False
