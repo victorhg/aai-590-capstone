@@ -1,11 +1,16 @@
 # Initialize the attacks module
 from .pgd import PGDAttack
 from .uap import UniversalPerturbation, UAPDataset
+from .cw import CWAuditoryAttack, CarliniWagnerAttack
 import numpy as np
 
-__all__ = ['PGDAttack', 
-           'UniversalPerturbation',
-           'UAPDataset']
+__all__ = [
+    'PGDAttack',
+    'UniversalPerturbation',
+    'UAPDataset',
+    'CWAuditoryAttack',
+    'CarliniWagnerAttack',
+]
 
 
 

@@ -67,11 +67,7 @@ class PGDAttack:
         
         return audio
 
-    def generate(
-        self, 
-        audio: torch.Tensor, 
-        input_lengths: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def generate(self, audio: torch.Tensor, input_lengths: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Generate adversarial perturbation.
         

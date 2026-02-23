@@ -223,6 +223,20 @@ class WhisperASRWithAttack(nn.Module):
             
             return loss
         else:
-            # Targeted attack: Minimize cross-entropy with target text
-            # This is more complex and requires autoregressive generation
-            raise NotImplementedError("Targeted attacks require autoregressive decoding - use untargeted for now")
+            # Targeted attack: Minimize cross-entropy between model output and target text.
+            # We pass the target token IDs as `labels` to WhisperForConditionalGeneration,
+            # which internally handles teacher-forcing and returns cross-entropy loss.
+            audio_tensor = self._preprocess_audio(audio_tensor, requires_grad=True)
+            log_mels = self._compute_mel_spectrogram(audio_tensor)
+
+            # Tokenize target text (no special tokens; model adds BOS internally)
+            tokenized = self.processor.tokenizer(
+                target_text,
+                return_tensors="pt",
+                add_special_tokens=False
+            )
+            label_ids = tokenized["input_ids"].to(self.device)  # (1, target_len)
+            label_ids = label_ids.repeat(audio_tensor.shape[0], 1)  # (batch, target_len)
+
+            output = self.model(input_features=log_mels, labels=label_ids)
+            return output.loss
