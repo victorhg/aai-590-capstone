@@ -68,7 +68,7 @@ class UniversalPerturbation:
         else:
             v = perturbation
 
-        # Clamp to prevent clipping artifacts (AGENTS.md §5)
+        # Clamp to prevent clipping artifacts 
         return torch.clamp(audio_tensor + v, -1.0, 1.0)
     
     def generate(self, dataset, audio_length=5.0, epochs=10):

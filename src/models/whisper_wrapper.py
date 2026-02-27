@@ -40,18 +40,6 @@ class WhisperASRWithAttack(nn.Module):
         self.expected_frames = 3000
     
     def _preprocess_audio(self, audio_tensor, requires_grad=True):
-        """
-        Preprocess audio tensor: ensure batch dimension, transfer to device,
-        pad/crop to target length, and set requires_grad flag.
-        
-        Args:
-            audio_tensor: Raw audio waveform (1D or 2D tensor)
-            requires_grad: Whether to enable gradient computation
-            
-        Returns:
-            Preprocessed audio tensor of shape (batch, n_samples)
-        """
-        # Ensure batch dimension
         if audio_tensor.ndim == 1:
             audio_tensor = audio_tensor.unsqueeze(0)
         
@@ -108,17 +96,6 @@ class WhisperASRWithAttack(nn.Module):
     
     @staticmethod
     def _clamp_audio(audio_tensor, min_val=AUDIO_MIN, max_val=AUDIO_MAX):
-        """
-        Clamp audio tensor to valid range.
-        
-        Args:
-            audio_tensor: Audio tensor
-            min_val: Minimum audio value (default: -1.0)
-            max_val: Maximum audio value (default: 1.0)
-            
-        Returns:
-            Clamped audio tensor
-        """
         return torch.clamp(audio_tensor, min_val, max_val)
 
     def forward(self, audio_tensor):

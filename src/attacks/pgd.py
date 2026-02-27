@@ -68,21 +68,11 @@ class PGDAttack:
         return audio
 
     def generate(self, audio: torch.Tensor, input_lengths: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
-        Generate adversarial perturbation.
         
-        Args:
-            audio: Clean audio tensor (1, samples).
-            input_lengths: Optional tensor of actual sample counts per batch.
-            
-        Returns:
-            Adversarial audio tensor.
-        """
-        # Deep copy to avoid modifying original
+        # Deep copy to avoid modifying original audio
         adv_audio = audio.clone().detach()
         
         if self.random_start:
-            # Random start within epsilon-ball
             start_delta = torch.empty_like(adv_audio).uniform_(
                 -self.epsilon, self.epsilon
             )
@@ -91,7 +81,6 @@ class PGDAttack:
         for _ in range(self.num_iter):
             adv_audio.requires_grad = True
             
-            # Forward pass
             with torch.enable_grad():
                 # Check if model has a dedicated loss function for attacks
                 if hasattr(self.model, "get_loss_for_attack"):
@@ -110,17 +99,17 @@ class PGDAttack:
             
             # Update (Sign of gradient)
             if self.attack_type == "untargeted":
-                # We want to maximize the loss (maximize uncertainty)
+                # maximize the loss (maximize uncertainty)
                 # So we move in the direction of the gradient
                 adv_audio = adv_audio + self.alpha * torch.sign(grad)
             elif self.attack_type == "targeted":
-                # We want to minimize the loss (minimize distance to target)
+                # minimize the loss (minimize distance to target)
                 # So we move against the gradient
                 adv_audio = adv_audio - self.alpha * torch.sign(grad)
 
             # Project back to epsilon-ball
             adv_audio = torch.clamp(adv_audio, audio - self.epsilon, audio + self.epsilon)
-            adv_audio = torch.clamp(adv_audio, -1.0, 1.0) # Final clamp to audio domain
+            adv_audio = torch.clamp(adv_audio, -1.0, 1.0) # Ensure valid audio range
             
             # Detach for next iteration
             adv_audio = adv_audio.detach()
