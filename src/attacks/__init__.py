@@ -2,6 +2,7 @@
 from .pgd import PGDAttack
 from .uap import UniversalPerturbation, UAPDataset
 from .cw import CWAuditoryAttack, CarliniWagnerAttack
+from .ucw import UniversalCWAttack
 import numpy as np
 
 __all__ = [
@@ -10,6 +11,7 @@ __all__ = [
     'UAPDataset',
     'CWAuditoryAttack',
     'CarliniWagnerAttack',
+    'UniversalCWAttack',
 ]
 
 
