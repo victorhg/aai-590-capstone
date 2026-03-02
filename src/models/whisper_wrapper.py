@@ -202,19 +202,49 @@ class WhisperASRWithAttack(nn.Module):
             return loss
         else:
             # Targeted attack: Minimize cross-entropy between model output and target text.
-            # We pass the target token IDs as `labels` to WhisperForConditionalGeneration,
-            # which internally handles teacher-forcing and returns cross-entropy loss.
+            # We explicitly build decoder_input_ids with Whisper's full forced prefix
+            # (<|startoftranscript|> <|en|> <|transcribe|> <|notimestamps|>) so the decoder
+            # operates in the exact same context as during normal inference.  Labels are
+            # set to -100 for the prefix positions (ignored by the loss) and the actual
+            # target token IDs + EOS for the loss computation.
             audio_tensor = self._preprocess_audio(audio_tensor, requires_grad=True)
             log_mels = self._compute_mel_spectrogram(audio_tensor)
+            batch_size = audio_tensor.shape[0]
 
-            # Tokenize target text (no special tokens; model adds BOS internally)
-            tokenized = self.processor.tokenizer(
+            # --- Build Whisper decoder prefix ---
+            prefix_token_strs = [
+                "<|startoftranscript|>", "<|en|>", "<|transcribe|>", "<|notimestamps|>"
+            ]
+            prefix_ids = self.processor.tokenizer.convert_tokens_to_ids(prefix_token_strs)
+
+            # Tokenize target text (raw words only, no special tokens)
+            target_enc = self.processor.tokenizer(
                 target_text,
                 return_tensors="pt",
-                add_special_tokens=False
+                add_special_tokens=False,
             )
-            label_ids = tokenized["input_ids"].to(self.device)  # (1, target_len)
-            label_ids = label_ids.repeat(audio_tensor.shape[0], 1)  # (batch, target_len)
+            target_ids = target_enc["input_ids"][0].tolist()
+            eos_id = self.processor.tokenizer.eos_token_id
 
-            output = self.model(input_features=log_mels, labels=label_ids)
+            # decoder_input_ids: what the decoder sees at each step
+            #   [<|startoftranscript|>, <|en|>, <|transcribe|>, <|notimestamps|>, t1, t2, ...]
+            dec_in = torch.tensor(
+                [prefix_ids + target_ids] * batch_size,
+                dtype=torch.long,
+                device=self.device,
+            )
+
+            # labels: shift by 1 to predict the NEXT token.
+            ignore = [-100] * (len(prefix_ids) - 1)
+            lbl = torch.tensor(
+                [ignore + target_ids + [eos_id]] * batch_size,
+                dtype=torch.long,
+                device=self.device,
+            )
+
+            output = self.model(
+                input_features=log_mels,
+                decoder_input_ids=dec_in,
+                labels=lbl,
+            )
             return output.loss
