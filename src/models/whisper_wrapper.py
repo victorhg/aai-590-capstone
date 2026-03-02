@@ -155,6 +155,7 @@ class WhisperASRWithAttack(nn.Module):
             transcription = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0]
             
         return transcription.strip()
+
     
     def get_encoder_output(self, audio_tensor):
         """

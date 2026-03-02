@@ -99,7 +99,7 @@ class CWAuditoryAttack:
                 best_loss = loss_val
                 best_adv = adv.detach().clone()
 
-            if step % max(1, self.steps // 10) == 0:
+            if step % max(1, self.steps // 30) == 0:
                 tqdm.write(f"  step {step:4d}/{self.steps} | loss={loss_val:.4f} "
                            f"(l2={l2_penalty.item():.4f}, ce={attack_loss.item():.4f})")
 
