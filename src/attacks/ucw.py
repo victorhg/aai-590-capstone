@@ -25,9 +25,11 @@ import torch.optim as optim
 from tqdm import tqdm
 
 import src.data as data_loader
+from .base import BaseUniversalAttack
+from .utils import prepare_audio
 
 
-class UniversalCWAttack:
+class UniversalCWAttack(BaseUniversalAttack):
     """
     Universal Carlini-Wagner attack for ASR models.
 
@@ -42,6 +44,9 @@ class UniversalCWAttack:
     - Default ``batch_size=1`` to avoid OOM on consumer GPUs.
     - ``torch.clamp(audio + δ, -1, 1)`` in every forward pass prevents clipping.
     - Length-mismatch handler crops δ when audio < δ and tiles when audio > δ.
+
+    Inherits ``apply``, ``get_perturbation``, ``save``, and ``load`` from
+    :class:`~attacks.base.BaseUniversalAttack`.
 
     Usage::
 
@@ -91,26 +96,6 @@ class UniversalCWAttack:
         self.delta.requires_grad_(True)
 
         self.optimizer = optim.Adam([self.delta], lr=self.lr)
-
-    def _apply_perturbation(self, audio: torch.Tensor) -> torch.Tensor:
-        audio_len = audio.shape[-1]
-        uap_len   = self.delta.shape[-1]
-
-        if audio_len < uap_len:
-            v = self.delta[:, :audio_len]
-        elif audio_len > uap_len:
-            repeats = (audio_len + uap_len - 1) // uap_len
-            v = self.delta.repeat(1, repeats)[:, :audio_len]
-        else:
-            v = self.delta
-
-        # Explicit clamp — prevents clipping artifacts 
-        return torch.clamp(audio + v, -1.0, 1.0)
-
-    def _project_delta(self):
-        """Project δ back onto the L_inf ε-ball (in-place, no gradient)."""
-        with torch.no_grad():
-            self.delta.clamp_(-self.epsilon, self.epsilon)
 
     def _cw_loss_single(self, audio: torch.Tensor) -> torch.Tensor:
         """
@@ -174,11 +159,9 @@ class UniversalCWAttack:
                         except Exception:
                             continue
 
-                        if audio.ndim == 1:
-                            audio = audio.unsqueeze(0)
-                        audio = audio.to(self.device)
-
-                        batch_loss = batch_loss + self._cw_loss_single(audio)
+                        batch_loss = batch_loss + self._cw_loss_single(
+                            prepare_audio(audio, self.device)
+                        )
 
                     batch_loss.backward()
                     self.optimizer.step()
@@ -195,11 +178,7 @@ class UniversalCWAttack:
                     except Exception:
                         continue
 
-                    if audio.ndim == 1:
-                        audio = audio.unsqueeze(0)
-                    audio = audio.to(self.device)
-
-                    adv  = self._apply_perturbation(audio)
+                    adv  = self._apply_perturbation(prepare_audio(audio, self.device))
                     pred = self.model.transcribe(adv.squeeze(0))
                     if self.target_phrase.lower() in pred.lower():
                         success_count += 1
@@ -217,27 +196,4 @@ class UniversalCWAttack:
 
         return history
 
-    def get_perturbation(self) -> torch.Tensor:
-        return self.delta.detach().clone().cpu()
 
-    def apply(self, audio: torch.Tensor) -> torch.Tensor:
-        """
-        Add δ to a single audio tensor and return adversarial audio (CPU).
-        Returns:
-            1-D adversarial tensor on CPU.
-        """
-        with torch.no_grad():
-            if audio.ndim == 1:
-                audio = audio.unsqueeze(0)
-            adv = self._apply_perturbation(audio.to(self.device))
-        return adv.squeeze(0).cpu()
-
-    def save(self, path: str):
-        torch.save(self.delta.detach().cpu(), path)
-        print(f"Saved universal perturbation → {path}")
-
-    def load(self, path: str):
-        loaded = torch.load(path, map_location=self.device)
-        with torch.no_grad():
-            self.delta.copy_(loaded.to(self.device))
-        print(f"Loaded universal perturbation ← {path}")

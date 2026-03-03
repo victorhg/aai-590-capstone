@@ -10,6 +10,8 @@ from tqdm import tqdm
 from torch.utils.data import Dataset
 
 import src.data as data_loader
+from .base import BaseUniversalAttack
+from .utils import prepare_audio
 
 class UAPDataset(Dataset):
     """Loads audio files and pads/crops them to a fixed length for UAP training."""
@@ -26,133 +28,80 @@ class UAPDataset(Dataset):
         return data_loader.pad_or_crop_audio(audio, self.max_samples)
 
 
-class UniversalPerturbation:
+class UniversalPerturbation(BaseUniversalAttack):
     """
     Trains a single perturbation v that degrades Whisper's transcription
     across many audio samples (Moosavi-Dezfooli et al. 2017).
+
+    Inherits ``apply``, ``get_perturbation``, ``save``, and ``load`` from
+    :class:`~attacks.base.BaseUniversalAttack`.
 
     Usage:
         attack = UniversalPerturbation(model, epsilon=0.05)
         v, history = attack.generate(dataset, epochs=20)
     """
     
-    def __init__(self, model, epsilon=0.02, lr=0.01, ):
+    def __init__(self, model, epsilon=0.02, lr=0.01):
         """
         Initialize UAP attack.
-        
+
         Args:
-            model: WhisperASRWithAttack wrapper
-            epsilon: L_inf constraint on perturbation magnitude
-            lr: Learning rate for v optimizing the perturbation
+            model:   WhisperASRWithAttack wrapper.
+            epsilon: L_inf constraint on perturbation magnitude.
+            lr:      Learning rate for optimizing v.
         """
-        self.model = model
+        self.model   = model
         self.epsilon = epsilon
-        self.lr = lr
-        self.device = next(model.parameters()).device
-    
-    
-    def _apply_perturbation(self, audio_tensor, perturbation):
-
-        """
-        Apply UAP to audio with length mismatch handling (AGENTS.md §6).
-        Crops perturbation if audio is shorter, tiles if audio is longer.
-        """
-        audio_len = audio_tensor.shape[-1]
-        uap_len   = perturbation.shape[-1]
-
-        if audio_len < uap_len:
-            v = perturbation[:, :audio_len]
-        elif audio_len > uap_len:
-            num_tiles = (audio_len + uap_len - 1) // uap_len
-            v = perturbation.repeat(1, num_tiles)[:, :audio_len]
-        else:
-            v = perturbation
-
-        # Clamp to prevent clipping artifacts 
-        return torch.clamp(audio_tensor + v, -1.0, 1.0)
+        self.lr      = lr
+        self.device  = next(model.parameters()).device
+        # δ is initialised lazily in generate() once audio_length is known.
+        self.delta: torch.Tensor | None = None
     
     def generate(self, dataset, audio_length=5.0, epochs=10):
 
-        history = {
-            'fooling_rates': [],
-            'avg_losses': []
-        }
-       
-        # initialize universal perturbation v
+        history = {'fooling_rates': [], 'avg_losses': []}
+
+        # Initialise δ (stored on self so BaseUniversalAttack helpers work).
         uap_length = int(audio_length * 16000)
-        v = torch.zeros(1, uap_length, device=self.device, requires_grad=True)
-        optimizer = torch.optim.SGD([v], lr=self.lr) 
+        self.delta = torch.zeros(1, uap_length, device=self.device, requires_grad=True)
+        optimizer  = torch.optim.SGD([self.delta], lr=self.lr)
 
         print(f"UAP Length: {uap_length} samples ({audio_length}s)")
-        
-        for epoch in range(epochs):
-            
-            epoch_loss = 0.0
-            fooled_count = 0
-        
-            for audio in tqdm(dataset, desc=f"Epoch({epoch+1}/{epochs}) - Processing samples"):
-                
-                if audio.ndim == 1:
-                    audio = audio.unsqueeze(0)
-                audio = audio.to(self.device)
 
-                # v already fools the model on this sample?
-                result = self.evaluate_single_sample(audio, v)
-                if result['is_fooled']:
+        for epoch in range(epochs):
+            epoch_loss   = 0.0
+            fooled_count = 0
+
+            for audio in tqdm(dataset, desc=f"Epoch({epoch+1}/{epochs}) - Processing samples"):
+                audio = prepare_audio(audio, self.device)
+
+                # Skip samples the current δ already fools.
+                if self.evaluate_single_sample(audio)['is_fooled']:
                     fooled_count += 1
-                    continue  # No need to update v for this sample
-                
-                x_adv = self._apply_perturbation(audio, v)
-                loss = self.model.get_loss_for_attack(x_adv)
-                
-                # Backward pass and optimize
+                    continue
+
+                x_adv = self._apply_perturbation(audio)
+                loss  = self.model.get_loss_for_attack(x_adv)
+
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                
-                # Project v back to epsilon ball (L_inf constraint)
-                with torch.no_grad():
-                    v.clamp_(-self.epsilon, self.epsilon)
-                
+                self._project_delta()   # enforce L_inf constraint
+
                 epoch_loss += loss.item()
-            
-            avg_loss = epoch_loss / len(dataset)
-            fooling_rate = fooled_count / len(dataset)
-            
-            
-            # Store history
-            history['fooling_rates'].append(fooling_rate)
-            history['avg_losses'].append(avg_loss)
-            
-        return v.detach(), history
+
+            history['fooling_rates'].append(fooled_count / len(dataset))
+            history['avg_losses'].append(epoch_loss / len(dataset))
+
+        return self.delta.detach(), history
 
     
-    def save_perturbation(self, v, filepath):
-        torch.save(v, filepath)
-    
-    def load_perturbation(self, filepath):
-        v = torch.load(filepath, map_location=self.device)
-        return v
-
-    def evaluate_single_sample(self, audio_tensor, perturbation):
-        """
-        Evaluate whether a perturbation fools the model on a single sample.
-        """
-        
+    def evaluate_single_sample(self, audio_tensor: torch.Tensor) -> dict:
+        """Evaluate whether the current δ fools the model on a single sample."""
         with torch.no_grad():
-            orig_transcription = self.model.transcribe(audio_tensor)
-            adv_transcription = self.model.transcribe(self._apply_perturbation(audio_tensor, perturbation))
-            
-        is_fooled = (orig_transcription != adv_transcription)
-        
-        return {
-            'original': orig_transcription,
-            'adversarial': adv_transcription,
-            'is_fooled': is_fooled
-        }
-    
-    def apply_uap_to_audio(self, audio: torch.Tensor, perturbation: torch.Tensor) -> torch.Tensor:
-        return self._apply_perturbation(audio.to(self.device), perturbation.to(self.device))
+            orig = self.model.transcribe(audio_tensor)
+            adv  = self.model.transcribe(self._apply_perturbation(audio_tensor))
+        return {'original': orig, 'adversarial': adv, 'is_fooled': orig != adv}
 
 
     

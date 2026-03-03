@@ -9,8 +9,7 @@ to generate adversarial perturbations.
 import torch
 import torch.nn.functional as F
 
-from typing import Tuple, Optional
-import librosa
+from typing import Optional
 
 
 class PGDAttack:
@@ -48,24 +47,6 @@ class PGDAttack:
     
     def _to_device(self, tensor):
         return tensor.to(self.model.device if hasattr(self.model, 'device') else 'cpu')
-
-    def _verify_input_audio(self, audio: torch.Tensor) -> torch.Tensor:
-        """
-        Ensure input audio is at 16kHz and normalized to [-1, 1].
-        
-        Args:
-            audio: Input tensor (1, samples) or (samples).
-            
-        Returns:
-            Tensor shaped (1, samples) with float32 range [-1, 1].
-        """
-        if audio.dim() == 1:
-            audio = audio.unsqueeze(0)
-        
-        # Normalize to [-1, 1]
-        audio = torch.clamp(audio, -1.0, 1.0)
-        
-        return audio
 
     def generate(self, audio: torch.Tensor, input_lengths: Optional[torch.Tensor] = None) -> torch.Tensor:
         
