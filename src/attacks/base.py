@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 
 from .utils import tile_to_length, prepare_audio
+from src.data.audio_loader import pad_or_crop_audio
 
 
 class BaseUniversalAttack:
@@ -31,6 +32,8 @@ class BaseUniversalAttack:
 
     def _apply_perturbation(self, audio: torch.Tensor) -> torch.Tensor:
         """Add δ to ``audio``, handling length mismatches, and clamp to [-1, 1]."""
+        # Ensure audio is padded to 30s (480,000 samples at 16kHz) to avoid attention leakage
+        audio = pad_or_crop_audio(audio, 480000)
         v = tile_to_length(self.delta, audio.shape[-1])
         return torch.clamp(audio + v, -1.0, 1.0)
 

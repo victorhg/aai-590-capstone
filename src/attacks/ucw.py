@@ -101,12 +101,17 @@ class UniversalCWAttack(BaseUniversalAttack):
         """
         CW loss for one audio clip:
 
-            ||δ||_2^2  +  c · CE( f(x + δ'), target )
+            c · CE( f(x + δ'), target )
+
+        Note: The L2 penalty is intentionally omitted here because the
+        L_inf projection in ``_project_delta`` already enforces the
+        imperceptibility constraint (||δ||_inf ≤ ε).  Including an L2 penalty
+        on top creates a double drag that opposes the optimizer expanding δ
+        toward the ε boundary, severely weakening the attack.
         """
         adv = self._apply_perturbation(audio)
-        l2_penalty  = torch.sum(self.delta ** 2)
         attack_loss = self.model.get_loss_for_attack(adv, target_text=self.target_phrase)
-        return l2_penalty + self.c * attack_loss
+        return self.c * attack_loss
 
     # ── training ───────────────────────────────────────────────────────────────
 
@@ -164,6 +169,10 @@ class UniversalCWAttack(BaseUniversalAttack):
                         )
 
                     batch_loss.backward()
+                    # max_norm=50.0: the L2 norm of delta's gradient across 80k
+                    # samples is naturally in the range 10-100; clipping to 1.0
+                    # was shrinking effective updates by 10-100x.
+                    torch.nn.utils.clip_grad_norm_([self.delta], max_norm=50.0)
                     self.optimizer.step()
                     self._project_delta()   # enforce L_inf constraint
 
@@ -188,7 +197,6 @@ class UniversalCWAttack(BaseUniversalAttack):
             avgl = epoch_loss / max(len(audio_files), 1)
             history["epoch_losses"].append(avgl)
             history["train_success_rates"].append(sr)
-
             tqdm.write(
                 f"  Epoch {epoch + 1:2d}/{epochs} | "
                 f"avg_loss={avgl:.4f} | train_success_rate={sr:.1%}"
