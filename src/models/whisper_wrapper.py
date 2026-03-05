@@ -207,18 +207,7 @@ class WhisperASRWithAttack(nn.Module):
             # operates in the exact same context as during normal inference.  Labels are
             # set to -100 for the prefix positions (ignored by the loss) and the actual
             # target token IDs + EOS for the loss computation.
-            #
-            # NOTE: _preprocess_audio is intentionally skipped here.  By the time
-            # audio_tensor reaches this method from the attack loop it is already:
-            #   • 2-D (1, 480 000) — padded by _apply_perturbation / pad_or_crop_audio
-            #   • on the correct device
-            #   • a non-leaf tensor with requires_grad=True (flows from self.delta)
-            # Calling _preprocess_audio again would try to assign .requires_grad=True
-            # to a non-leaf tensor (silently ignored) and re-pad an already-padded
-            # buffer (no-op but confusing).
-            if audio_tensor.ndim == 1:
-                audio_tensor = audio_tensor.unsqueeze(0)
-            audio_tensor = audio_tensor.to(self.device)
+            audio_tensor = self._preprocess_audio(audio_tensor, requires_grad=True)
             log_mels = self._compute_mel_spectrogram(audio_tensor)
             batch_size = audio_tensor.shape[0]
 

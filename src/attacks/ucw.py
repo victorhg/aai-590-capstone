@@ -6,10 +6,12 @@ forces the target ASR model to output a specific ``target_phrase``.
 
 Optimization objective (targeted, summed over a batch — Zhang et al. 2021):
 
-    L(δ) = Σ_i  [ ||δ||_2^2  +  c · CE( f(x_i + δ'), y_target ) ]
+    L(δ) = Σ_i  CE( f(x_i + δ'), y_target )
 
-δ is updated with Adam and projected back onto the L_inf ε-ball after each
-gradient step (AGENTS.md §5: explicit clamp to avoid clipping artifacts).
+δ is updated via **PGD sign-gradient descent** and projected back onto the
+L_inf ε-ball after each step (AGENTS.md §5: explicit clamp to avoid
+clipping artifacts).  The L_inf projection replaces the original L2 penalty
+which was counterproductive under a tight ε budget.
 
 References:
     • Neekhara et al. 2019 — "Universal Adversarial Perturbations for Speech
@@ -18,10 +20,11 @@ References:
       https://ar5iv.labs.arxiv.org/html/2105.09022
 """
 
+import math
+
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from tqdm import tqdm
 
 import src.data as data_loader
@@ -44,6 +47,9 @@ class UniversalCWAttack(BaseUniversalAttack):
     - Default ``batch_size=1`` to avoid OOM on consumer GPUs.
     - ``torch.clamp(audio + δ, -1, 1)`` in every forward pass prevents clipping.
     - Length-mismatch handler crops δ when audio < δ and tiles when audio > δ.
+    - **PGD sign-gradient** updates instead of Adam for L_inf geometry.
+    - **No L2 penalty** — L_inf projection alone bounds the perturbation.
+    - **Cosine-annealing** learning-rate schedule for stable convergence.
 
     Inherits ``apply``, ``get_perturbation``, ``save``, and ``load`` from
     :class:`~attacks.base.BaseUniversalAttack`.
@@ -61,9 +67,9 @@ class UniversalCWAttack(BaseUniversalAttack):
         whisper_model: nn.Module,
         target_phrase: str,
         uap_length: int,
-        epsilon: float = 0.02,
-        c: float = 50.0,
-        learning_rate: float = 0.005,
+        epsilon: float = 0.05,
+        c: float = 1.0,
+        learning_rate: float = 5e-4,
         device: str = "cpu",
         noise_init: float = 1e-4,
     ):
@@ -72,12 +78,13 @@ class UniversalCWAttack(BaseUniversalAttack):
             whisper_model : ``WhisperASRWithAttack`` instance.
             target_phrase : Text that the model should produce on every input.
             uap_length    : Number of samples in the universal perturbation.
-                            Recommended: 5 s × 16 000 Hz = 80 000 samples.
+                            Recommended: 10–30 s × 16 000 Hz.
             epsilon       : L_inf constraint — keeps ``||δ||_inf ≤ epsilon``.
                             Higher ε → higher success rate but more audible.
-            c             : Weight of the cross-entropy term in the CW loss.
-                            Larger c → stronger push toward target_phrase.
-            learning_rate : Adam learning rate.
+                            Use ≥ 0.05 for targeted universal attacks.
+            c             : Scalar multiplier on the CE loss (usually 1.0
+                            since the L2 penalty has been removed).
+            learning_rate : Step size for PGD sign-gradient updates.
             device        : ``'cpu'``, ``'cuda'``, or ``'mps'``.
             noise_init    : Std-dev of random initialisation for δ (avoids
                             the flat-loss region at δ = 0).
@@ -88,6 +95,7 @@ class UniversalCWAttack(BaseUniversalAttack):
         self.epsilon       = epsilon
         self.c             = c
         self.lr            = learning_rate
+        self.lr_init       = learning_rate
         self.device        = device
 
         # Initialise δ inside the ε-ball with small random noise.
@@ -95,23 +103,25 @@ class UniversalCWAttack(BaseUniversalAttack):
         self.delta = self.delta.clamp(-epsilon, epsilon)
         self.delta.requires_grad_(True)
 
-        self.optimizer = optim.Adam([self.delta], lr=self.lr)
-
     def _cw_loss_single(self, audio: torch.Tensor) -> torch.Tensor:
         """
-        CW loss for one audio clip:
+        Loss for one audio clip (CE only — L_inf projection handles constraints):
 
             c · CE( f(x + δ'), target )
 
-        Note: The L2 penalty is intentionally omitted here because the
-        L_inf projection in ``_project_delta`` already enforces the
-        imperceptibility constraint (||δ||_inf ≤ ε).  Including an L2 penalty
-        on top creates a double drag that opposes the optimizer expanding δ
-        toward the ε boundary, severely weakening the attack.
+        The L2 penalty is intentionally removed: under a tight L_inf budget the
+        L2 term was consuming ~50 % of the total loss and pushing δ → 0,
+        actively fighting the adversarial objective.
         """
         adv = self._apply_perturbation(audio)
         attack_loss = self.model.get_loss_for_attack(adv, target_text=self.target_phrase)
         return self.c * attack_loss
+
+    # ── LR schedule helpers ─────────────────────────────────────────────────────
+
+    def _cosine_lr(self, step: int, total_steps: int) -> float:
+        """Cosine-annealing learning rate (decays to 1 % of initial LR)."""
+        return self.lr_init * (0.01 + 0.99 * 0.5 * (1 + math.cos(math.pi * step / max(total_steps, 1))))
 
     # ── training ───────────────────────────────────────────────────────────────
 
@@ -120,42 +130,54 @@ class UniversalCWAttack(BaseUniversalAttack):
         audio_files: list,
         epochs: int = 10,
         batch_size: int = 1,
+        grad_accum_steps: int = 1,
     ) -> dict:
         """
-        Train δ over *epochs* passes of *audio_files*.
+        Train δ over *epochs* passes of *audio_files* using PGD
+        sign-gradient descent with cosine-annealing LR.
 
         Args:
-            audio_files : List of .flac / .wav paths (training set).
-            epochs      : Number of full passes over the training set.
-            batch_size  : Clips per gradient step.  Keep ≤ 4 on consumer GPUs
-                          to avoid OOM (AGENTS.md §3).
+            audio_files      : List of .flac / .wav paths (training set).
+            epochs           : Number of full passes over the training set.
+            batch_size       : Clips per gradient step.  Keep ≤ 4 on consumer
+                               GPUs to avoid OOM (AGENTS.md §3).
+            grad_accum_steps : Number of mini-batches to accumulate gradients
+                               over before performing a single PGD step.
+                               Effective batch = batch_size × grad_accum_steps.
 
         Returns:
             ``history`` dict with keys:
-              - ``epoch_losses``       — average CW loss per epoch
+              - ``epoch_losses``        — average loss per epoch
               - ``train_success_rates`` — fraction of first-20 train samples
-                                         where the target phrase appears
+                                          where the target phrase appears
         """
         history = {"epoch_losses": [], "train_success_rates": []}
+
+        n_batches_per_epoch = max(1, len(audio_files) // batch_size)
+        total_steps = epochs * (n_batches_per_epoch // grad_accum_steps)
+        global_step = 0
 
         for epoch in range(epochs):
             epoch_loss    = 0.0
             success_count = 0
             n_evaluated   = 0
+            accum_count   = 0
 
             # Shuffle for diversity each epoch.
             indices = np.random.permutation(len(audio_files))
 
+            # Zero accumulated gradients at start of epoch
+            if self.delta.grad is not None:
+                self.delta.grad.zero_()
+
             with tqdm(
                 range(0, len(audio_files), batch_size),
-                desc=f"Epoch {epoch + 1}/{epochs}",
                 leave=True,
             ) as pbar:
                 for batch_start in pbar:
                     batch_idx   = indices[batch_start : batch_start + batch_size]
                     batch_files = [audio_files[i] for i in batch_idx]
 
-                    self.optimizer.zero_grad()
                     batch_loss = torch.tensor(0.0, device=self.device)
 
                     for fpath in batch_files:
@@ -168,18 +190,32 @@ class UniversalCWAttack(BaseUniversalAttack):
                             prepare_audio(audio, self.device)
                         )
 
-                    batch_loss.backward()
-                    # max_norm=50.0: the L2 norm of delta's gradient across 80k
-                    # samples is naturally in the range 10-100; clipping to 1.0
-                    # was shrinking effective updates by 10-100x.
-                    torch.nn.utils.clip_grad_norm_([self.delta], max_norm=50.0)
-                    self.optimizer.step()
-                    self._project_delta()   # enforce L_inf constraint
+                    # Scale loss for gradient accumulation
+                    (batch_loss / grad_accum_steps).backward()
+                    accum_count += 1
 
                     epoch_loss += batch_loss.item()
                     pbar.set_postfix(loss=f"{batch_loss.item():.4f}")
 
-            # ── end-of-epoch success-rate proxy on first 20 train samples ──────
+                    # ── PGD sign-gradient step after accumulating ──────────
+                    if accum_count % grad_accum_steps == 0:
+                        lr_t = self._cosine_lr(global_step, total_steps)
+                        with torch.no_grad():
+                            self.delta -= lr_t * self.delta.grad.sign()
+                            self._project_delta()   # enforce L_inf constraint
+                        self.delta.grad.zero_()
+                        global_step += 1
+
+            # ── flush any remaining accumulated gradients ──────────────────
+            if accum_count % grad_accum_steps != 0:
+                lr_t = self._cosine_lr(global_step, total_steps)
+                with torch.no_grad():
+                    self.delta -= lr_t * self.delta.grad.sign()
+                    self._project_delta()
+                self.delta.grad.zero_()
+                global_step += 1
+
+            # ── end-of-epoch success-rate proxy on first 20 train samples ──
             with torch.no_grad():
                 for fpath in audio_files[:20]:
                     try:
@@ -199,7 +235,8 @@ class UniversalCWAttack(BaseUniversalAttack):
             history["train_success_rates"].append(sr)
             tqdm.write(
                 f"  Epoch {epoch + 1:2d}/{epochs} | "
-                f"avg_loss={avgl:.4f} | train_success_rate={sr:.1%}"
+                f"avg_loss={avgl:.4f} | train_success_rate={sr:.1%} | "
+                f"lr={self._cosine_lr(global_step, total_steps):.6f}"
             )
 
         return history

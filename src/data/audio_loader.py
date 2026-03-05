@@ -21,7 +21,7 @@ def get_librispeech_files(data_dir: str = None) -> List[str]:
         data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data')
         
     search_pattern = os.path.join(data_dir, "**", "*.flac")
-    return glob.glob(search_pattern, recursive=True)
+    return sorted(glob.glob(search_pattern, recursive=True))
 
 def load_audio(file_path: str) -> (np.ndarray, int):
     return librosa.load(file_path, sr=16000)
