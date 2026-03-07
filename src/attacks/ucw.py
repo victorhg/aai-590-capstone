@@ -233,11 +233,12 @@ class UniversalCWAttack(BaseUniversalAttack):
             avgl = epoch_loss / max(len(audio_files), 1)
             history["epoch_losses"].append(avgl)
             history["train_success_rates"].append(sr)
-            tqdm.write(
-                f"  Epoch {epoch + 1:2d}/{epochs} | "
-                f"avg_loss={avgl:.4f} | train_success_rate={sr:.1%} | "
-                f"lr={self._cosine_lr(global_step, total_steps):.6f}"
-            )
+            if epoch % 50 == 0 or epoch == epochs - 1:
+                tqdm.write(
+                    f"  Epoch {epoch + 1:2d}/{epochs} | "
+                    f"avg_loss={avgl:.4f} | train_success_rate={sr:.1%} | "
+                    f"lr={self._cosine_lr(global_step, total_steps):.6f}"
+                )
 
         return history
 

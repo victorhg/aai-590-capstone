@@ -1,6 +1,8 @@
 # Core Deep Learning
 torch>=2.0.0
 torchaudio>=2.0.0
+transformers
+librosa
 
 # ASR Models
 openai-whisper>=20231117
@@ -15,6 +17,7 @@ scipy
 jiwer
 numpy
 scikit-learn
+jiwer
 
 # Visualization
 matplotlib
@@ -29,3 +32,4 @@ datasets
 seaborn
 matplotlib
 jupyter
+transformers
