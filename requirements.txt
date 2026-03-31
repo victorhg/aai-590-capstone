@@ -1,15 +1,10 @@
-# Core Libraries
-torch>=2.0.0
 openai-whisper
 speechbrain
+torch
 librosa
 jiwer
 soundfile
 numpy
 matplotlib
-scipy
 sounddevice
-
-# UI & Demo
-gradio
 pyaudio
