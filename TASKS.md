@@ -160,10 +160,10 @@
 - [ ] Add annotations/captions explaining each attack stage
 - [ ] Export final demo video and upload to presentation platform
 
-# Documentation & Demo Materials [NOT DONE]
-- [ ] Create `DEMO_SETUP.md` with installation instructions
-- [ ] Document demo script with timing and talking points
-- [ ] Prepare slide deck explaining: Differentiability → Gradients → Attacks
-- [ ] Add troubleshooting section for common issues (microphone permissions, latency)
-- [ ] Create README section highlighting the demo capabilities
-- [ ] Prepare Q&A responses for common questions (transferability, defenses, real-world impact)
+# Documentation & Demo Materials [DONE]
+- [x] Create `DEMO_SETUP.md` with installation instructions
+- [x] Document demo script with timing and talking points
+- [x] Prepare slide deck explaining: Differentiability → Gradients → Attacks
+- [x] Add troubleshooting section for common issues (microphone permissions, latency)
+- [x] Create README section highlighting the demo capabilities
+- [x] Prepare Q&A responses for common questions (transferability, defenses, real-world impact)
