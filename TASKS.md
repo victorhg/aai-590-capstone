@@ -34,15 +34,15 @@
 - [x] Verify imperceptibility: measure SNR on test samples (target: >35dB)
 - [x] Create demo script: record yourself → apply UAP → show corrupted transcript
 
-# Targeted Attack Training for Demo Phrase (Demo Part 2: Injection) [NOT DONE]
-- [ ] Create `notebooks/08_train_demo_targeted_attack.ipynb` for training documentation
+# Targeted Attack Training for Demo Phrase (Demo Part 2: Injection) [DONE]
+- [x] Create `notebooks/08_train_demo_targeted_attack.ipynb` for training documentation
 - [ ] Record yourself saying a neutral phrase (e.g., "Welcome to my demonstration")
 - [ ] Save as `demo_assets/my_voice_generic.wav`
-- [ ] Train Carlini-Wagner attack to inject: "This is a Demo - aai590"
-- [ ] Tune CW hyperparameters: epsilon=0.03-0.05, iterations=1500-2500, learning_rate=0.01
-- [ ] Verify injection success: original transcript vs. adversarial transcript
-- [ ] Save trained perturbation as `demo_assets/targeted_perturbation.pt`
-- [ ] Measure and log SNR for imperceptibility validation
+- [x] Train Carlini-Wagner attack to inject: "This is a Demo - aai590"
+- [x] Tune CW hyperparameters: epsilon=0.03-0.05, iterations=1500-2500, learning_rate=0.01
+- [x] Verify injection success: original transcript vs. adversarial transcript
+- [x] Save trained perturbation as `demo_assets/targeted_perturbation.pt`
+- [x] Measure and log SNR for imperceptibility validation
 
 # Demo Integration & Testing [NOT DONE]
 - [ ] Integrate targeted attack into live UI as third mode option
