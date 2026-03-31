@@ -1,167 +1,192 @@
 import gradio as gr
 import torch
 import numpy as np
-from src.demo.audio_stream import AudioStream
-from src.models.whisper_wrapper import load_whisper_model, transcribe_audio
+import soundfile as sf
+import os
+from pathlib import Path
 
-# Configuration
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# Attempt to import the project modules
+try:
+    from src.models.whisper_wrapper import load_model, transcribe_audio
+    from src.attacks.uap import UniversalPerturbation
+except ImportError:
+    print("Warning: Project modules not found. Ensure running in correct environment.")
+    pass
+
+# --- Configuration ---
+MODEL_SIZE = "base"  # or "small", "medium", "large"
+FPS = 30
+DEFAULT_EPSILON = 0.02
 SAMPLE_RATE = 16000
-BUFFER_DURATION = 30  # Seconds (Whisper requirement)
-MODEL_SIZE = "base"   # Or "small", "medium", "large"
+MAX_DURATION = 30  # seconds for Whisper
 
 class LiveTranscriber:
-    def __init__(self):
-        self.stream = None
-        self.is_recording = False
-        self.model = None
-        self.load_model()
+    def __init__(self, model_size=MODEL_SIZE):
+        self.model = load_model(model_size)
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # Load UAP if available
+        self.uap_path = Path("results/universal_perturbation_v.pt")
+        self.uap = UniversalPerturbation.load(self.uap_path) if self.uap_path.exists() else None
+        
+        print(f"Live Transcriber initialized on {self.device}")
 
-    def load_model(self):
-        """Load Whisper model."""
-        print(f"Loading Whisper model on {DEVICE}...")
-        self.model = load_whisper_model(MODEL_SIZE)
-        print("Model loaded.")
+    def apply_attack(self, audio_chunk, mode="clean"):
+        """
+        Apply perturbation based on mode.
+        mode: 'clean', 'uap', 'targeted'
+        """
+        # Ensure float32 and -1.0 to 1.0 range
+        audio = audio_chunk.astype(np.float32)
+        if np.max(audio) > 1.0:
+            audio = audio / np.max(audio)
+            
+        perturbed_audio = audio.copy()
+        
+        if mode == "uap" and self.uap is not None:
+            # Apply Universal Perturbation
+            # UAP is usually 30s long. If chunk is shorter, handle it.
+            if len(perturbed_audio) < self.uap.vector.shape[0]:
+                # Pad with zeros or repeat logic (simplified here)
+                perturbed_audio = self.uap.apply(perturbed_audio)
+            else:
+                perturbed_audio = self.uap.apply(perturbed_audio[:self.uap.vector.shape[0]])
+        
+        elif mode == "targeted":
+            # Placeholder for targeted attack logic
+            pass
+            
+        return perturbed_audio
 
-    def start_recording(self):
-        """Start the audio stream."""
-        self.stream = AudioStream(
-            samplerate=SAMPLE_RATE,
-            channels=1,
-            buffer_duration=BUFFER_DURATION
+    def transcribe(self, audio_array, mode="clean"):
+        """
+        Main transcription logic.
+        """
+        if audio_array is None:
+            return "No audio input", 0, 0
+            
+        # Apply attack if needed
+        processed_audio = self.apply_attack(audio_array, mode)
+        
+        # Save temp file for Whisper (Whisper requires file path or tensor, but tensor is faster)
+        # We'll use the tensor interface if available, or file
+        try:
+            # Assuming transcribe_audio handles the tensor directly
+            result = transcribe_audio(self.model, processed_audio, device=self.device)
+            text = result['text']
+            wer = result.get('wer', 0.0)
+            snr = result.get('snr', 0.0)
+        except Exception as e:
+            print(f"Error during transcription: {e}")
+            text = "Error processing audio."
+            wer = 0.0
+            snr = 0.0
+            
+        return text, wer, snr
+
+# --- Gradio Interface Setup ---
+def create_ui():
+    transcriber = LiveTranscriber()
+    
+    with gr.Blocks(title="Adversarial ASR Demo") as demo:
+        gr.Markdown("# Adversarial Speech Recognition")
+        gr.Markdown("Select a mode and speak into the microphone.")
+        
+        with gr.Row():
+            with gr.Column(scale=1):
+                mode_select = gr.Radio(
+                    choices=["clean", "uap", "targeted"],
+                    value="clean",
+                    label="Attack Mode",
+                    info="Clean: No attack | UAP: Universal Perturbation | Targeted: CW Attack (Placeholder)"
+                )
+                
+                mic = gr.Audio(
+                    sources=["microphone"],
+                    type="filepath",
+                    label="Microphone Input"
+                )
+                
+                submit_btn = gr.Button("Transcribe", variant="primary")
+                
+                with gr.Accordion("Transcript & Metrics"):
+                    transcript_output = gr.Textbox(label="Transcript", lines=4)
+                    metrics_output = gr.JSON(label="Metrics (WER, SNR)")
+                    
+                clear_btn = gr.Button("Clear Transcripts")
+            
+            with gr.Column(scale=1):
+                status_box = gr.Textbox(label="System Status", value="Ready.")
+                info_box = gr.Markdown(
+                    """
+                    ### Instructions
+                    1. Select a mode.
+                    2. Allow microphone access.
+                    3. Speak clearly for ~3-5 seconds.
+                    4. Click 'Transcribe' or press Enter.
+                    
+                    **Note:** UAP mode requires a pre-trained perturbation file.
+                    """
+                )
+        
+        # State variables
+        state = {
+            "history": []
+        }
+
+        def process_audio(audio_path):
+            if audio_path is None:
+                return "", {}, "Please provide audio."
+            
+            try:
+                # Load audio
+                # Note: Gradio returns a filepath or dict
+                if isinstance(audio_path, dict):
+                    if 'bytes' in audio_path:
+                        # Handle byte stream if applicable
+                        import io
+                        with io.BytesIO(audio_path['bytes']) as f:
+                            wav_data = sf.read(f)
+                    elif 'name' in audio_path:
+                        wav_data, _ = sf.read(audio_path['name'])
+                    else:
+                        return "", {}, "Unknown audio format."
+                else:
+                    wav_data, _ = sf.read(audio_path)
+                
+                # Resample to 16kHz if necessary
+                if wav_data.shape[0] != SAMPLE_RATE:
+                    print(f"Resampling from {wav_data.shape[0]} to {SAMPLE_RATE}")
+                    # Simple resampling placeholder (implementation depends on library)
+                    # For robustness, we assume input matches or use librosa/soundfile resampling
+                
+                # Get current mode
+                current_mode = mode_select.value
+                
+                # Transcribe
+                text, wer, snr = transcriber.transcribe(wav_data, current_mode)
+                
+                status = f"Processed. Mode: {current_mode}. WER: {wer:.2f}, SNR: {snr:.2f} dB"
+                return text, {"WER": wer, "SNR": snr}, status
+                
+            except Exception as e:
+                print(f"Process Error: {e}")
+                return "", {}, f"Error: {e}"
+
+        # Event Listeners
+        submit_btn.click(
+            fn=process_audio,
+            inputs=[mic],
+            outputs=[transcript_output, metrics_output, status_box]
         )
-        self.stream.start()
-        self.is_recording = True
-        return "Recording started..."
-
-    def stop_recording(self):
-        """Stop the audio stream and process."""
-        if not self.stream:
-            return "Error: No stream running."
         
-        self.is_recording = False
-        self.stream.stop()
-        
-        # Get audio buffer
-        audio_data = self.stream.get_audio_buffer()
-        
-        if audio_data is None or len(audio_data) == 0:
-            return "Error: No audio captured."
-        
-        # Normalize just in case (AudioStream usually handles this, but double check)
-        if np.abs(audio_data).max() > 1.0:
-            audio_data = np.clip(audio_data, -1.0, 1.0)
-            
-        return transcribe_audio(self.model, audio_data)
+        clear_btn.click(
+            fn=lambda: ("", {}, "Ready."),
+            outputs=[transcript_output, metrics_output, status_box]
+        )
 
-    def process_chunk(self, chunk_data):
-        """Handle real-time chunk processing (optional for this simple version)."""
-        pass
+    return demo
 
-# Initialize App
-transcriber = LiveTranscriber()
-
-with gr.Blocks(theme=gr.themes.Soft()) as demo:
-    gr.Markdown("# 🎙️ Live Transcription with Adversarial Attacks")
-    gr.Markdown("Select a mode below and press **Record** to start. The system will capture 30 seconds of audio and transcribe it.")
-    
-    with gr.Row():
-        with gr.Column():
-            mode = gr.Radio(
-                choices=["Clean", "Untargeted UAP", "Targeted Attack"],
-                value="Clean",
-                label="Attack Mode"
-            )
-            record_btn = gr.Button("🔴 Record & Transcribe", variant="primary")
-            stop_btn = gr.Button("⏹️ Stop", variant="stop")
-            status = gr.Textbox(label="Status", value="Ready")
-            output_text = gr.Textbox(label="Transcript", lines=4, placeholder="Transcription will appear here...")
-            
-            # Metrics Display
-            with gr.Accordion("Attack Metrics", open=False):
-                snr = gr.Number(label="SNR (dB)")
-                wer = gr.Number(label="WER (%)")
-
-    # Gradio Logic
-    def record_transcribe(mode):
-        # Start stream
-        status_msg = transcriber.start_recording()
-        
-        # Wait a bit for buffer to fill, then stop
-        # Note: In a real-time app, we'd process chunks, but for 30s fixed window:
-        # We just wait for the user to stop, or process once the buffer is ready.
-        # For this simplified version, we'll start, wait a moment, then stop automatically 
-        # to simulate the 'Record' action completing.
-        
-        # Simulate recording delay for UX
-        yield status_msg, "", "", "", ""
-        
-        # In a production app, you might poll the stream or use an async queue.
-        # Here we assume the user presses 'Record' then waits briefly, or we auto-stop.
-        # Let's implement a simple auto-stop after 3 seconds for the demo experience.
-        
-        # Actually, let's keep it manual as per "Start/Stop" buttons requested.
-        # But to make the flow work in Gradio, we need the function to return the result.
-        # We will use a global variable or simpler logic: 
-        # Button triggers start. User waits. Stop button triggers process.
-        
-        pass 
-
-    # To make Gradio work smoothly with state, we'll use a global flag or 
-    # separate state variables if supported. Here is a robust implementation:
-    
-    # State
-    is_recording_state = gr.State(False)
-    stream_buffer = gr.State(None)
-    
-    # Redefining logic to handle the loop correctly in Gradio
-    # We need to process the 'Stop' action
-    
-    def on_record_click(mode):
-        # Start stream
-        transcriber.stream = AudioStream(samplerate=SAMPLE_RATE, channels=1, buffer_duration=BUFFER_DURATION)
-        transcriber.stream.start()
-        return True
-
-    def on_stop_click(mode, is_rec):
-        if is_rec and transcriber.stream:
-            audio = transcriber.stream.stop_and_get()
-            # Transcribe
-            text = transcribe_audio(transcriber.model, audio)
-            
-            # Simple Metrics (Dummy for demo mode or simple calc if UAP implemented)
-            snr_val = -10 # Placeholder
-            wer_val = 0.0
-            
-            return False, text, snr_val, wer_val, "Transcription Complete"
-        return is_rec, "", "", "", "Recording stopped"
-
-    # Re-binding with state handling
-    demo.load(lambda: False, inputs=[], outputs=[is_recording_state])
-    
-    # Actually, let's keep it simpler for the single file requirement.
-    # We will implement the UI as requested.
-
-    # UI Layout (Simplified)
-    with gr.Row():
-        with gr.Column(scale=1):
-            mode_selector = gr.Radio(["Clean", "Untargeted UAP"], label="Mode")
-            record_btn = gr.Button("Start Recording", variant="primary")
-            output_label = gr.Textbox(label="Result", lines=5)
-            metrics_label = gr.Textbox(label="Metrics", lines=2)
-            
-    # Logic
-    def process_audio():
-        # Placeholder implementation for logic
-        # Real implementation requires hooking into AudioStream state
-        return "Processing..."
-
-# The UI definition needs to be corrected to be fully functional in a single block
-# Let's rewrite the core logic cleanly.
-
-# Note: This is a structural implementation. It assumes AudioStream has a 
-# `stop_and_get()` method which aggregates the buffer.
-
-# Main Execution
 if __name__ == "__main__":
+    demo = create_ui()
     demo.launch(share=True)
