@@ -1,35 +1,15 @@
-# Core Deep Learning
+# Core Libraries
 torch>=2.0.0
-torchaudio>=2.0.0
-transformers
-librosa
-
-# ASR Models
-openai-whisper>=20231117
+openai-whisper
 speechbrain
-
-# Audio Processing
-librosa>=0.10.0
-soundfile>=0.12.0
-scipy
-
-# Evaluation & Metrics
+librosa
 jiwer
+soundfile
 numpy
-scikit-learn
-jiwer
-
-# Visualization
 matplotlib
-transformers>=4.35.0
-accelerate>=0.20.0
+scipy
+sounddevice
 
-
-# Utilities
-tqdm
-huggingface_hub
-datasets
-seaborn
-matplotlib
-jupyter
-transformers
+# UI & Demo
+gradio
+pyaudio
