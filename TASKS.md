@@ -123,13 +123,13 @@
 - [ ] Create side-by-side comparison template for video editing
 - [ ] Prepare audio visualization plots (waveform + spectrogram)
 
-# Untargeted Attack Integration (Demo Part 1: Corruption) [NOT DONE]
-- [ ] Load pre-trained UAP vector from `notebooks/04_uap_training.ipynb` or `06_uap_jammer.ipynb`
-- [ ] Save UAP as standalone file: `models/trained_uap.pt`
-- [ ] Implement real-time UAP application function in `src/demo/attack_utils.py`
-- [ ] Test UAP on streaming audio chunks (verify differentiability not required for inference)
-- [ ] Verify imperceptibility: measure SNR on test samples (target: >35dB)
-- [ ] Create demo script: record yourself → apply UAP → show corrupted transcript
+# Untargeted Attack Integration (Demo Part 1: Corruption) [DONE]
+- [x] Load pre-trained UAP vector from `notebooks/04_uap_training.ipynb` or `06_uap_jammer.ipynb`
+- [x] Save UAP as standalone file: `models/trained_uap.pt`
+- [x] Implement real-time UAP application function in `src/demo/attack_utils.py`
+- [x] Test UAP on streaming audio chunks (verify differentiability not required for inference)
+- [x] Verify imperceptibility: measure SNR on test samples (target: >35dB)
+- [x] Create demo script: record yourself → apply UAP → show corrupted transcript
 
 # Targeted Attack Training for Demo Phrase (Demo Part 2: Injection) [NOT DONE]
 - [ ] Create `notebooks/08_train_demo_targeted_attack.ipynb` for training documentation
