@@ -1,206 +1,144 @@
 """
-Live Transcription System with Adversarial Capabilities
+Live Transcription Demo System
+Supports Clean, Untargeted UAP, and Targeted Attack modes.
 """
 import gradio as gr
 import torch
 import numpy as np
-from queue import Queue
-import sounddevice as sd
-import soundfile as sf
-import librosa
-import time
-import threading
+from src.models.whisper_wrapper import WhisperASR
+from src.demo.audio_stream import AudioStream
+from src.demo.attack_utils import (
+    apply_untargeted_uap,
+    apply_targeted_attack
+)
 
-# Local imports
-from src.models.whisper_wrapper import load_whisper_model
-from src.demo.audio_stream import AudioStreamManager
-from src.demo.attack_utils import UAPManager
-
-# Global State
-MODES = ["Clean", "Untargeted UAP"]
-MODE_CLEAN = 0
-MODE_UAP = 1
-
-class LiveTranscriber:
-    def __init__(self):
-        print("Initializing Live Transcriber...")
+class LiveTranscribeApp:
+    def __init__(self, device='cuda' if torch.cuda.is_available() else 'cpu'):
+        self.device = device
+        self.asr = WhisperASR(device=device)
+        self.audio_stream = AudioStream()
         
-        # Load Whisper Model
-        # Using 'base' for faster inference on CPU/CPU+GPU
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"Using device: {self.device}")
-        self.model = load_whisper_model(device=self.device)
-        
-        # Initialize Attack Manager
-        # Attempting to load the UAP trained in notebook 04
-        uap_path = "results/universal_perturbation_v_80.pt"
+        # Load perturbations
+        # Try loading UAP
+        self.uap = None
         try:
-            self.uap_manager = UAPManager(uap_path=uap_path)
-        except Exception as e:
-            print(f"Warning: Could not load UAP manager. Attacks will be disabled. Error: {e}")
-            self.uap_manager = None
-
-        # Audio Stream Setup
-        self.sample_rate = 16000
-        self.stream = None
-        self.transcription_queue = Queue()
-        
-        # State
-        self.is_recording = False
-        self.current_mode = MODE_CLEAN
-
-    def start_recording(self):
-        """Start the audio recording loop."""
-        if self.is_recording:
-            return "Already recording!"
+            self.uap = torch.load('results/universal_perturbation_v.pt', map_location=device)
+            print("Loaded Untargeted UAP successfully.")
+        except:
+            print("Untargeted UAP not found.")
             
-        self.is_recording = True
-        self.audio_buffer = []
-        
-        # Callback for audio chunks
-        def callback(indata, frames, time, status):
-            if status:
-                print(f"Audio stream status: {status}")
-            self.audio_buffer.append(indata.copy())
-            
+        # Try loading Targeted Perturbation
+        self.targeted_pert = None
         try:
-            # Start stream
-            self.stream = sd.InputStream(
-                samplerate=self.sample_rate,
-                channels=1, # Mono
-                callback=callback,
-                blocksize=2048
-            )
-            self.stream.start()
-            print("Recording started...")
+            self.targeted_pert = torch.load('demo_assets/targeted_perturbation.pt', map_location=device)
+            print("Loaded Targeted Perturbation successfully.")
+        except FileNotFoundError:
+            print("Targeted Perturbation not found in demo_assets/.")
+
+    def process_audio(self, audio_data, mode):
+        """
+        Main inference loop.
+        audio_data: numpy array
+        mode: "Clean", "Untargeted", "Targeted"
+        """
+        if mode == "Clean":
+            # Standard Whisper
+            transcript = self.asr.transcribe(audio_data)
+            metrics = {"SNR": "N/A", "WER": "N/A"}
+            attack_status = "No Attack"
             
-            # Start processing thread
-            threading.Thread(target=self.process_audio_loop, daemon=True).start()
-            
-        except Exception as e:
-            print(f"Error starting stream: {e}")
-            self.is_recording = False
+        elif mode == "Untargeted":
+            # Apply UAP
+            if self.uap is not None:
+                audio_perturbed = apply_untargeted_uap(audio_data, self.uap)
+                transcript = self.asr.transcribe(audio_perturbed)
+                # Calculate simple SNR for demo
+                snr_val = self._calculate_snr(audio_data, audio_perturbed)
+                metrics = {"SNR": f"{snr_val:.2f}dB", "WER": "N/A"}
+                attack_status = "UAP Applied"
+            else:
+                transcript = "Error: UAP model not loaded."
+                metrics = {"SNR": "Error", "WER": "Error"}
+                attack_status = "UAP Not Found"
 
-    def process_audio_loop(self):
-        """Process audio chunks while recording."""
-        while self.is_recording:
-            if len(self.audio_buffer) > 0:
-                # Get the last chunk
-                chunk = self.audio_buffer.pop(0)
-                
-                # Apply Adversarial Attack if in UAP mode
-                if self.current_mode == MODE_UAP and self.uap_manager:
-                    # UAP expects [channels, samples] or [samples], chunk is usually [frames, channels] or [frames]
-                    # Sounddevice returns shape (N, channels)
-                    if chunk.ndim == 1:
-                        chunk = chunk.unsqueeze(1)
-                    
-                    perturbed_chunk = self.uap_manager.apply_uap(chunk)
-                    if perturbed_chunk is not None:
-                        # Convert back to [samples] for whisper
-                        audio_input = perturbed_chunk.squeeze(1).cpu().numpy()
-                    else:
-                        audio_input = chunk.squeeze(1).cpu().numpy()
-                else:
-                    # Clean mode
-                    audio_input = chunk.squeeze(1).cpu().numpy()
-                
-                # Transcribe
-                try:
-                    result = self.model.transcribe(
-                        audio_input,
-                        language='en',
-                        fp16=False if self.device == 'cpu' else True
-                    )
-                    text = result["text"].strip()
-                    
-                    # Calculate SNR if applicable
-                    snr_info = ""
-                    if self.current_mode == MODE_UAP and self.uap_manager:
-                        # Reconstruct original for SNR (approximate)
-                        original = chunk.squeeze(1).cpu().numpy()
-                        perturbed = audio_input
-                        snr = self.uap_manager.get_snr(
-                            torch.tensor(original, dtype=torch.float32),
-                            torch.tensor(perturbed, dtype=torch.float32)
-                        )
-                        snr_info = f" (SNR: {snr:.2f}dB)"
-                    
-                    self.transcription_queue.put(text + snr_info)
-                    
-                except Exception as e:
-                    print(f"Transcription error: {e}")
-                    
-            time.sleep(0.01) # Small sleep to prevent busy waiting
+        elif mode == "Targeted":
+            # Apply Targeted Attack
+            if self.targeted_pert is not None:
+                audio_perturbed = apply_targeted_attack(audio_data, self.targeted_pert)
+                transcript = self.asr.transcribe(audio_perturbed)
+                # Calculate SNR
+                snr_val = self._calculate_snr(audio_data, audio_perturbed)
+                metrics = {"SNR": f"{snr_val:.2f}dB", "WER": "N/A"}
+                attack_status = "Targeted Attack Applied"
+            else:
+                transcript = "Error: Targeted Perturbation not found. Please run training notebook first."
+                metrics = {"SNR": "Error", "WER": "Error"}
+                attack_status = "Model Not Found"
+        else:
+            transcript = "Unknown mode"
+            metrics = {"SNR": "N/A", "WER": "N/A"}
+            attack_status = "Unknown"
 
-    def stop_recording(self):
-        """Stop recording and get result."""
-        self.is_recording = False
-        if self.stream:
-            self.stream.stop()
-            self.stream.close()
-            self.stream = None
-        return "Stopped."
+        return transcript, metrics, attack_status
 
-    def set_mode(self, mode_name):
-        """Update the attack mode."""
-        if mode_name == "Clean":
-            self.current_mode = MODE_CLEAN
-        elif mode_name == "Untargeted UAP":
-            self.current_mode = MODE_UAP
-        return f"Mode changed to: {mode_name}"
+    def _calculate_snr(self, clean_audio, noisy_audio):
+        """Calculate Signal-to-Noise Ratio in dB."""
+        # Handle different shapes/lengths by taking min or center
+        min_len = min(len(clean_audio), len(noisy_audio))
+        clean = clean_audio[:min_len]
+        noisy = noisy_audio[:min_len]
+        
+        signal_power = np.mean(clean ** 2)
+        noise_power = np.mean((clean - noisy) ** 2)
+        
+        if noise_power == 0:
+            return float('inf')
+        
+        return 10 * np.log10(signal_power / noise_power)
 
-# Gradio UI Setup
-def setup_ui():
-    transcriber = LiveTranscriber()
+def create_demo_ui():
+    app = LiveTranscribeApp()
     
-    with gr.Blocks(title="Whisper Adversarial Demo") as demo:
-        gr.Markdown("# Whisper Live Transcription: Clean vs. Adversarial")
+    with gr.Blocks(title="Adversarial Audio Transcription Demo") as demo:
+        gr.Markdown("# Adversarial Audio Transcription Demo")
+        gr.Markdown("Select a mode to see how attacks affect Whisper transcriptions.")
         
         with gr.Row():
             with gr.Column():
-                status_text = gr.Textbox(label="Status")
-                mode_select = gr.Dropdown(choices=MODES, value="Clean", label="Operation Mode")
-                record_btn = gr.Button("Start Recording", variant="primary")
-                stop_btn = gr.Button("Stop Recording", variant="stop")
-                
+                mode_select = gr.Radio(
+                    choices=["Clean", "Untargeted", "Targeted"],
+                    value="Clean",
+                    label="Attack Mode"
+                )
+                record_btn = gr.Button("🎤 Start Recording (30s)")
+                stop_btn = gr.Button("⏹ Stop Recording")
+            
             with gr.Column():
-                transcript_display = gr.Textbox(label="Live Transcript", lines=5)
+                transcript_output = gr.Textbox(label="Transcription", lines=5)
+                metrics_output = gr.JSON(label="Metrics (SNR)")
+                status_output = gr.Textbox(label="Status", value="Ready")
         
-        # Event Handlers
-        record_btn.click(
-            fn=lambda: status_text.update(value="Recording..."),
-            inputs=None,
-            outputs=status_text
-        ).then(
-            fn=transcriber.start_recording,
-            inputs=None,
-            outputs=None
-        ).then(
-            fn=lambda: status_text.update(value="Live Transcribing..."),
-            inputs=None,
-            outputs=status_text
-        )
+        # State variables
+        is_recording = gr.State(False)
         
-        stop_btn.click(
-            fn=transcriber.stop_recording,
-            inputs=None,
-            outputs=status_text
-        )
+        def start_recording():
+            is_recording = True
+            return is_recording, "Recording...", "Active"
         
-        # Live Update
-        def update_transcript():
-            if transcriber.is_recording:
-                try:
-                    new_text = transcriber.transcription_queue.get_nowait()
-                except:
-                    new_text = ""
-                return transcript_display.update(value=new_text), status_text.update(value="Live Transcribing...")
-            else:
-                return transcript_display.update(value="Stop recording to see final text."), status_text.update(value="Idle")
+        def stop_recording():
+            # Capture audio
+            audio_data = app.audio_stream.get_audio()
+            # Process
+            mode = mode_select.value
+            transcript, metrics, status = app.process_audio(audio_data, mode)
+            is_recording = False
+            return is_recording, "", transcript, metrics, status
 
-        demo.queue()
-        demo.launch(server_name="0.0.0.0", server_port=7860, share=True)
+        record_btn.click(start_recording, inputs=[], outputs=[is_recording, status_output, status_output])
+        stop_btn.click(stop_recording, inputs=[], outputs=[is_recording, record_btn, transcript_output, metrics_output, status_output])
+
+    return demo
 
 if __name__ == "__main__":
-    setup_ui()
+    ui = create_demo_ui()
+    ui.launch()
