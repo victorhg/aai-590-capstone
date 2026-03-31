@@ -1,143 +1,125 @@
 import gradio as gr
 import torch
 import numpy as np
-import soundfile as sf
+import whisper
 import librosa
-from .audio_stream import AudioStream
-from ...models.whisper_wrapper import WhisperModelWrapper
-from ...attacks.uap import apply_uap
+import soundfile as sf
+import os
+from src.attacks.uap import apply_universal_perturbation
 
-# Global model wrapper
-model_wrapper = None
-
-def initialize_model():
-    """Loads the Whisper model lazily."""
-    global model_wrapper
-    if model_wrapper is None:
+class LiveTranscriptionUI:
+    def __init__(self, model_name="base", uap_path="results/universal_perturbation_v.pt"):
         print("Loading Whisper model...")
-        model_wrapper = WhisperModelWrapper()
-        print("Model loaded.")
-    return model_wrapper
-
-def process_audio(audio_data, sample_rate, mode, uap_path="demo_assets/universal_perturbation.pt"):
-    """
-    Main processing function.
-    
-    Args:
-        audio_data: Raw numpy audio array from Gradio.
-        sample_rate: Sample rate of the input audio.
-        mode: 'clean', 'uap', or 'targeted'.
-        uap_path: Path to the pre-trained UAP vector.
-    """
-    
-    # Initialize model
-    model = initialize_model()
-    
-    if audio_data is None:
-        return "No audio input.", 0, 0
-    
-    # Ensure 16kHz (Whisper requirement)
-    # Gradio records at user choice, usually 16k or 44.1k. 
-    # We assume standard Gradio behavior and downsample if necessary, 
-    # but typically Gradio's default is 16k.
-    
-    try:
-        if mode == "Clean (Baseline)":
-            # 1. Transcribe Clean
-            print("Running Clean Transcription...")
-            # WhisperWrapper expects float32 in [-1, 1]
-            text_clean = model_wrapper.transcribe(audio_data)
-            
-            # Calculate SNR (Dummy for clean)
-            # Ideally we store original, but for UI we might skip exact SNR calc for clean 
-            # or compute it against a theoretical silent floor.
-            snr = "N/A" 
-            cer = 0 # Assuming clean
-            
-            return text_clean, "0 dB", "0.0"
-
-        elif mode == "Untargeted UAP (Corruption)":
-            # 1. Load UAP perturbation
-            # Note: This relies on the 'Untargeted Attack Integration' task completing
-            print(f"Loading UAP from {uap_path}...")
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = whisper.load_model(model_name, device=self.device)
+        print(f"Model loaded on {self.device}.")
+        
+        # Load UAP if exists
+        self.uap = None
+        if os.path.exists(uap_path):
+            print(f"Loading Universal Perturbation from {uap_path}...")
             try:
-                uap_vector = torch.load(uap_path)
-            except FileNotFoundError:
-                return f"Error: UAP file not found at {uap_path}. Please run 'Untargeted Attack Integration' first.", 0, 0
+                self.uap = torch.load(uap_path)
+                print("UAP loaded successfully.")
+            except Exception as e:
+                print(f"Warning: Could not load UAP. Error: {e}")
+        else:
+            print(f"Warning: UAP file not found at {uap_path}.")
 
-            # 2. Apply UAP to audio
-            # apply_uap handles the casting and padding if necessary
-            perturbed_audio = apply_uap(audio_data, uap_vector)
+    def transcribe(self, audio_input, mode="Clean"):
+        """
+        Transcribe audio. If mode is 'UAP', apply the perturbation before transcription.
+        """
+        if audio_input is None:
+            return "Please upload or record audio first."
+
+        try:
+            # Whisper expects input in the format model takes (numpy array or file path)
+            # We use numpy array for direct manipulation.
             
-            # 3. Transcribe Corrupted
-            print("Running Adversarial Transcription...")
-            text_adv = model_wrapper.transcribe(perturbed_audio)
+            # Mode 'Clean': Just pass to Whisper
+            if mode == "Clean":
+                result = self.model.transcribe(audio_input)
+                return result["text"]
             
-            # 4. Metrics
-            # Calculate CER (Character Error Rate)
-            cer = compute_cer(text_clean, text_adv) 
-            # Calculate SNR (Signal to Noise Ratio of perturbation)
-            snr = calculate_snr(audio_data, perturbed_audio)
-            
-            return f"Adversarial Transcript: {text_adv}\n\nClean: {text_clean}", f"{snr:.2f} dB", f"{cer:.2f}"
+            # Mode 'UAP'
+            elif mode == "Untargeted UAP":
+                if self.uap is None:
+                    return "Error: UAP not loaded. Check console logs."
 
-        elif mode == "Targeted CW (Injection)":
-            # Note: This relies on the 'Targeted Attack Training' task completing
-            return "Targeted Attack mode not yet loaded. Please train a targeted model first.", 0, 0
-            
-    except Exception as e:
-        return f"Error during processing: {str(e)}", 0, 0
-
-def compute_cer(ref, hyp):
-    # Simple cer implementation or using jiwer if available
-    try:
-        from jiwer import cer
-        return cer(ref, hyp)
-    except ImportError:
-        return 0.0
-
-def calculate_snr(orig, perturbed):
-    # Signal to Noise Ratio in dB
-    orig_sq = np.mean(orig**2)
-    diff_sq = np.mean((orig - perturbed)**2)
-    if diff_sq == 0:
-        return float('inf')
-    return 10 * np.log10(orig_sq / diff_sq)
-
-# --- UI Setup ---
-
-def build_ui():
-    with gr.Blocks(title="Whisper Adversarial Attack Demo") as demo:
-        gr.Markdown("# 🎤 Whisper Adversarial Attack Live Demo")
-        gr.Markdown("Select an attack mode and record your audio.")
-        
-        with gr.Row():
-            with gr.Column():
-                mode = gr.Dropdown(
-                    choices=["Clean (Baseline)", "Untargeted UAP (Corruption)", "Targeted CW (Injection)"],
-                    value="Clean (Baseline)",
-                    label="Attack Mode"
-                )
-                record_btn = gr.Audio(
-                    sources=["microphone"],
-                    type="numpy", 
-                    label="Record Audio (30s)"
-                )
-                submit_btn = gr.Button("Transcribe")
+                # Load audio with librosa for resampling and normalization (Whisper requirement)
+                # Whisper handles the resampling, but we need the raw waveform
+                y, sr = librosa.load(audio_input, sr=16000, mono=True)
                 
-            with gr.Column():
-                output_text = gr.Textbox(label="Transcription", lines=4)
-                output_snr = gr.Textbox(label="SNR (dB)", interactive=False)
-                output_cer = gr.Textbox(label="CER", interactive=False)
+                # Apply Perturbation
+                # Ensure tensor format for model operations
+                if isinstance(self.uap, np.ndarray):
+                    self.uap = torch.from_numpy(self.uap)
+                
+                # Apply perturbation logic (assume epsilon clipping is handled inside attack module)
+                perturbed_audio = apply_universal_perturbation(self.uap, y)
+                
+                # Whisper requires file path or numpy array. We save a temp file for Whisper
+                # to handle the log_mel_spectrogram preprocessing correctly.
+                temp_file = "temp_perturbed.wav"
+                sf.write(temp_file, perturbed_audio, 16000)
+                
+                result = self.model.transcribe(temp_file)
+                
+                # Clean up temp file
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+                    
+                return result["text"]
 
-        submit_btn.click(
-            fn=process_audio,
-            inputs=[record_btn, None, mode], # Pass dummy sample rate, handled in fn
-            outputs=[output_text, output_snr, output_cer]
-        )
-        
-    return demo
+            return "Unknown mode selected."
+
+        except Exception as e:
+            return f"Error during transcription: {str(e)}"
+
+    def launch(self):
+        with gr.Blocks(title="Whisper Adversarial Attack Demo") as demo:
+            gr.Markdown("# **Whisper Adversarial Attack Demo**")
+            gr.Markdown("### Live Transcription with UAP Injection")
+            
+            with gr.Row():
+                with gr.Column(scale=1):
+                    audio_input = gr.Audio(
+                        sources=["microphone", "upload"], 
+                        type="filepath", 
+                        label="Input Audio"
+                    )
+                    
+                    mode = gr.Radio(
+                        choices=["Clean", "Untargeted UAP"], 
+                        value="Clean", 
+                        label="Attack Mode",
+                        interactive=True
+                    )
+                    
+                    transcribe_btn = gr.Button("Transcribe")
+                    
+                with gr.Column(scale=2):
+                    output_text = gr.Textbox(label="Transcription Output", lines=5)
+
+            gr.Markdown("**Instructions:**")
+            gr.Markdown("1. Select a mode (Clean or Untargeted UAP).")
+            gr.Markdown("2. Record your voice or upload an audio file.")
+            gr.Markdown("3. Click 'Transcribe' to see the result.")
+            gr.Markdown(f"4. **UAP Status:** {'Loaded' if self.uap is not None else 'Not Loaded'}")
+
+            transcribe_btn.click(
+                fn=self.transcribe,
+                inputs=[audio_input, mode],
+                outputs=output_text
+            )
+
+        demo.launch(share=False)
 
 if __name__ == "__main__":
-    ui = build_ui()
-    ui.launch()
+    # Configuration
+    MODEL_SIZE = "base"
+    UAP_FILE = "results/universal_perturbation_v.pt"
+    
+    app = LiveTranscriptionUI(model_name=MODEL_SIZE, uap_path=UAP_FILE)
+    app.launch()
