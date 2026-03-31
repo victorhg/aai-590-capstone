@@ -1,10 +1,22 @@
-openai-whisper
-speechbrain
-torch
-librosa
-jiwer
-soundfile
-numpy
-matplotlib
-sounddevice
-pyaudio
+# Core ASR & ML
+torch>=2.0.0
+openai-whisper>=20231117
+speechbrain>=0.5.16
+
+# Audio Processing
+librosa>=0.10.0
+soundfile>=0.12.0
+numpy>=1.24.0
+scipy>=1.11.0
+sounddevice>=0.4.6
+
+# Evaluation & Metrics
+jiwer>=3.0.0
+
+# Live Demo Infrastructure
+pyaudio>=0.2.13
+gradio>=4.0.0
+
+# Visualization
+matplotlib>=3.7.0
+tqdm>=4.65.0
