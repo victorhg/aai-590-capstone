@@ -14,3 +14,4 @@ sounddevice
 gradio
 transformers
 accelerate
+resampy
