@@ -79,14 +79,26 @@ class UniversalCWAttack(BaseUniversalAttack):
         
         return successes / max(checked, 1)
 
-    def train(self, audio_files: list, epochs: int = 10, batch_size: int = 1, grad_accum_steps: int = 1) -> dict:
-        history = {"epoch_losses": [], "train_success_rates": []}
+    def train(
+        self,
+        audio_files: list,
+        epochs: int = 10,
+        batch_size: int = 1,
+        grad_accum_steps: int = 1,
+        val_files: list | None = None,
+        early_stopping_patience: int = 20,
+    ) -> dict:
+        history = {"epoch_losses": [], "train_success_rates": [], "val_success_rates": []}
         
         # Calculate steps
         n_batches = max(1, len(audio_files) // batch_size)
         total_steps = epochs * (n_batches // grad_accum_steps)
         global_step = 0
         self.delta.grad = None
+
+        # Early stopping state
+        best_val_sr = -1.0
+        patience_counter = 0
 
         for epoch in range(epochs):
             indices = np.random.permutation(len(audio_files))
@@ -130,14 +142,37 @@ class UniversalCWAttack(BaseUniversalAttack):
                 global_step += 1
 
             # 4. Validation & Logging
-            sr = self._validate(audio_files)
+            sr_train = self._validate(audio_files)
             avg_loss = epoch_loss / max(len(audio_files), 1)
-            
+
             history["epoch_losses"].append(avg_loss)
-            history["train_success_rates"].append(sr)
-            
+            history["train_success_rates"].append(sr_train)
+
+            sr_val = None
+            if val_files:
+                sr_val = self._validate(val_files)
+                history["val_success_rates"].append(sr_val)
+
             if epoch % 10 == 0 or epoch == epochs - 1:
-                tqdm.write(f"  Result: loss={avg_loss:.4f} | success_rate={sr:.1%} | lr={self._get_lr(global_step, total_steps):.6f}")
+                val_str = f" | val_sr={sr_val:.1%}" if sr_val is not None else ""
+                tqdm.write(
+                    f"  Result: loss={avg_loss:.4f} | train_sr={sr_train:.1%}{val_str}"
+                    f" | lr={self._get_lr(global_step, total_steps):.6f}"
+                )
+
+            # Early stopping on val success rate
+            if val_files and sr_val is not None:
+                if sr_val > best_val_sr + 0.01:
+                    best_val_sr = sr_val
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+                    if patience_counter >= early_stopping_patience:
+                        tqdm.write(
+                            f"  Early stopping at epoch {epoch + 1} "
+                            f"(no val improvement for {early_stopping_patience} epochs)"
+                        )
+                        break
 
         return history
 
