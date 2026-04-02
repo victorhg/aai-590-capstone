@@ -414,3 +414,19 @@ There are still delays and rough edges that affect usability:
 - The current UI wiring and recording-state handling are still prototype quality, so edge cases around start/stop behavior and mode selection may require cleanup before presentation use.
 
 In common use cases, the system is good enough to demonstrate the attack concept. In edge cases, especially when a required perturbation artifact is missing or when fast user feedback is expected, the current implementation still behaves more like a research prototype than a polished end-user product.
+
+
+
+## Future Work
+
+### Improving the weakest results
+
+The clearest improvement target is the tradeoff between attack strength and imperceptibility. In the current results, the strongest PGD and CW attacks often succeed at relatively low SNR, while the universal targeted setting remains ineffective. The next step is to improve the optimization objective and tuning process so attack success is maintained while perturbations remain less audible, especially for targeted and universal targeted attacks.
+
+### Making the system more general and more reliable
+
+This work becomes more broadly useful if evaluation is standardized across all attack types. Future experiments should use one consistent protocol for text normalization, ground-truth comparison, success criteria, and perceptual quality metrics so PGD, UAP, and CW results can be compared directly. The pipeline should also be tested beyond LibriSpeech test-clean, including cross-dataset and cross-language settings, and the live demo should be improved with lower latency and a cleaner user experience so it behaves more like a deployable prototype than a proof of concept.
+
+### Research directions to explore
+
+The strongest research opportunities are in transferability and realism. Important next areas include over-the-air attacks, multilingual robustness, better universal targeted optimization, and perceptually informed loss functions that align more closely with human listening. These directions would help determine whether the vulnerabilities shown here remain meaningful outside a controlled white-box, single-dataset English setting.
