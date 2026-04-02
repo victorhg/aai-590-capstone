@@ -7,10 +7,15 @@ AAI-590 Capstone Project
 
 _Shiley-Marcos School of Engineering, University of San Diego AAI-500: Probability and Statistics_
 
+## Abstract
+
+The AAI-590 Capstone Project at the University of San Diego in the  M.S. in Applied Artificial Intelligence program. This capstone focus on adversarial attacks against Whisper, OpenAI's automatic speech recognition model. Using multiple adversarial approaches, we implemented Projected Gradient Descent (PGD),  Universal Adversarial Perturbation (UAP) and Targeted Carlini-Wagner (CW), in order to explore Whisper's vulnerabilities to intentional "smart noises" that can affect the model capabilities. The main finding is that Whisper remains vulnerable in the digital white-box setting. Untargeted attacks substantially change transcription output, targeted attacks can force a chosen phrase on a small evaluation batch, and a universal perturbation can generalize across multiple utterances. At the same time, the most successful attacks in the current implementation often operate at SNR levels that are more audible than the original ideal target, so effectiveness and imperceptibility remain the central tradeoff.
+
 
 ## Project objective
 
 Implementing adversarial attacks on OpenAI's Whisper speech recognition model. The project focuses on generating imperceptible audio perturbations that cause transcription failures. This is a critical security issue with implications for content moderation, command injection, and data poisoning. Adversarial attacks on speech recognition exploit a critical vulnerability: while Whisper is robust to natural noise and random perturbations, it is highly vulnerable to adversarial noise where small, crafted modifications are specifically optimized to fool the model.
+
 
 
 ## Reference
