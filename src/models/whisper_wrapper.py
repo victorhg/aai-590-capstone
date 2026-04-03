@@ -103,10 +103,8 @@ class WhisperASRWithAttack(nn.Module):
         Forward pass that accepts raw audio and returns logits.
         Ensures gradients flow back to audio_tensor.
         """
-        # Preprocess audio: batch dimension, device, padding, requires_grad
-        audio_tensor = self._preprocess_audio(audio_tensor, requires_grad=True)
         
-        # Compute differentiable log-mel spectrogram
+        audio_tensor = self._preprocess_audio(audio_tensor, requires_grad=True)
         log_mels = self._compute_mel_spectrogram(audio_tensor)
         
         # Forward pass through Whisper model
@@ -115,7 +113,6 @@ class WhisperASRWithAttack(nn.Module):
             [[WHISPER_START_OF_TRANSCRIPT_TOKEN]] * audio_tensor.shape[0]
         ).to(self.device)
         
-        # If we want to minimize 'CrossEntropy', we need logits over vocab.
         output = self.model(
             input_features=log_mels, 
             decoder_input_ids=decoder_input_ids
@@ -139,7 +136,6 @@ class WhisperASRWithAttack(nn.Module):
             # Preprocess audio (no gradients needed for transcription)
             audio_tensor = self._preprocess_audio(audio_tensor, requires_grad=False)
             
-            # Compute mel spectrogram
             log_mels = self._compute_mel_spectrogram(audio_tensor)
             
             # Generate tokens using model's generate method
@@ -151,7 +147,6 @@ class WhisperASRWithAttack(nn.Module):
                 do_sample=False
             )
             
-            # Decode to text
             transcription = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0]
             
         return transcription.strip()
@@ -168,10 +163,8 @@ class WhisperASRWithAttack(nn.Module):
         Returns:
             encoder_output: Encoder hidden states (batch, 1500, hidden_dim)
         """
-        # Preprocess audio with gradients enabled
-        audio_tensor = self._preprocess_audio(audio_tensor, requires_grad=True)
-        
-        # Compute mel spectrogram
+
+        audio_tensor = self._preprocess_audio(audio_tensor, requires_grad=True)        
         log_mels = self._compute_mel_spectrogram(audio_tensor)
         
         # Get encoder output
@@ -196,7 +189,6 @@ class WhisperASRWithAttack(nn.Module):
             encoder_output = self.get_encoder_output(audio_tensor)
             
             # Compute entropy-like loss: minimize standard deviation across features
-            # This makes the encoder output "flat" and less informative
             loss = -torch.mean(torch.std(encoder_output, dim=-1))
             
             return loss
@@ -226,8 +218,6 @@ class WhisperASRWithAttack(nn.Module):
             target_ids = target_enc["input_ids"][0].tolist()
             eos_id = self.processor.tokenizer.eos_token_id
 
-            # decoder_input_ids: what the decoder sees at each step
-            #   [<|startoftranscript|>, <|en|>, <|transcribe|>, <|notimestamps|>, t1, t2, ...]
             dec_in = torch.tensor(
                 [prefix_ids + target_ids] * batch_size,
                 dtype=torch.long,

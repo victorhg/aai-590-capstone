@@ -1,11 +1,3 @@
-"""
-PGD Attack Implementation for Whisper ASR.
-
-This module implements the Projected Gradient Descent (PGD) attack 
-on Whisper models. It computes gradients with respect to the input audio
-to generate adversarial perturbations.
-"""
-
 import torch
 import torch.nn.functional as F
 
@@ -67,7 +59,6 @@ class PGDAttack:
                 if hasattr(self.model, "get_loss_for_attack"):
                     loss = self.model.get_loss_for_attack(adv_audio)
                 else:
-                    # Generic fall-back for transformers models
                     output = self.model(adv_audio)
                     logits = output.logits
                     # Simple untargeted: Maximize uncertainty (entropy) of first token

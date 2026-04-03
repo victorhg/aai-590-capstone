@@ -3,7 +3,10 @@ Data module for ASR Adversarial Attacks.
 Handles loading, preprocessing, and downloading datasets.
 """
 import os
+import numpy as np
 from pathlib import Path
+
+from numpy.random import seed
 
 # Data Paths
 # Resolves to: /Users/.../soundfinal/src/data/../../data -> /Users/.../soundfinal/data
@@ -43,6 +46,9 @@ def load_dataset() -> AudioDataset:
         download_librispeech_sample() 
 
     sample_paths = get_librispeech_files()
+    rng = np.random.default_rng(42)  # Fixed seed for reproducibility
+    rng.shuffle(sample_paths)
+
     print(f"Found {len(sample_paths)} audio files.")
     if len(sample_paths) > 0:
         print(f"Sample: {sample_paths[0]}")
