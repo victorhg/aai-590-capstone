@@ -8,11 +8,12 @@ This document is written as a PowerPoint-ready technical report. Each top-level 
 
 ## 1. Executive Summary
 
-This project studies whether OpenAI Whisper can be fooled by small, carefully optimized changes to audio that humans may barely notice but that significantly degrade or redirect automatic speech recognition output. The capstone implemented three attack families against Whisper-base:
+This project studies whether OpenAI Whisper can be fooled by small, carefully optimized changes to audio that humans may barely notice but that significantly degrade or redirect automatic speech recognition output. The capstone implemented four attack families against Whisper-base:
 
 - Untargeted Projected Gradient Descent (PGD), which creates a custom perturbation for one audio clip at a time.
 - Universal Adversarial Perturbation (UAP), which learns one reusable perturbation that can be applied across many audio clips.
-- Targeted Carlini-Wagner (CW), which forces Whisper toward a specific phrase.
+- Targeted Carlini-Wagner (CW), which forces Whisper toward a specific phrase on a per-sample basis.
+- Universal Carlini-Wagner (UCW), which combines CW's targeted objective with UAP's universal perturbation strategy to force a target phrase across any input audio.
 
 The main finding is that Whisper remains vulnerable in the digital white-box setting. Untargeted attacks substantially change transcription output, targeted attacks can force a chosen phrase on a small evaluation batch, and a universal perturbation can generalize across multiple utterances. At the same time, the most successful attacks in the current implementation often operate at SNR levels that are more audible than the original ideal target, so effectiveness and imperceptibility remain the central tradeoff.
 
@@ -141,9 +142,17 @@ The implementation adds three practical features:
 
 This attack is harder and slower than PGD, but it demonstrates the most security-critical scenario because it can inject a chosen phrase rather than merely cause degradation.
 
-### 5.5 Exploratory extension
+### 5.5 Universal Carlini-Wagner Attack
 
-The repository also contains a universal targeted CW variant in [src/attacks/ucw.py](src/attacks/ucw.py) and saved artifacts in [results/ucw_delta_working.pt](results/ucw_delta_working.pt). In the current notebook results, that universal targeted setting remains an open challenge rather than a finished success case.
+The UCW attack is implemented in [src/attacks/ucw.py](src/attacks/ucw.py) and extends the per-sample CW framework into the universal setting. It trains a single shared perturbation $v$ — the same architecture as the UAP vector — but replaces the untargeted degradation objective with a targeted CW loss:
+
+$$
+\min_{v} \; \mathbb{E}_{x \sim X}\left[ \|v\|_2^2 + c \cdot L\big(f(x + \text{tile}(v)),\, y_{target}\big) \right] \quad \text{s.t.} \quad \|v\|_\infty \le \epsilon
+$$
+
+This is the most demanding optimization problem in the project. The attack must find a single fixed perturbation that, when tiled or cropped to match any variable-length utterance, causes Whisper to output a specific target phrase regardless of the spoken content. The training loop uses gradient sign steps with a cosine annealing learning rate schedule, gradient accumulation support, and early stopping based on validation success rate. Perturbation is projected back onto the $L_\infty$ $\epsilon$-ball after every step.
+
+The UCW training was run with 600 training files and 150 validation files from LibriSpeech test-clean (split manifest saved in [results/ucw_split_manifest.json](results/ucw_split_manifest.json)), and the best intermediate checkpoint is stored in [results/ucw_delta_working.pt](results/ucw_delta_working.pt). The universal targeted setting is the hardest problem in the capstone and represents the boundary between what is currently achievable and what remains an open research challenge.
 
 ## 6. Tools and Software Stack
 
@@ -272,15 +281,23 @@ Interpretation:
 - The targeted attack is the most dramatic failure mode because it replaces meaning, not just accuracy.
 - It is also the least stealthy of the recorded experiments, with lower average SNR than PGD and UAP.
 
-### 8.5 Exploratory universal targeted result
+### 8.5 Universal Carlini-Wagner results
 
-The optional universal targeted notebook [notebooks/06_universal_targeted_attack.ipynb](notebooks/06_universal_targeted_attack.ipynb) records a target phrase of "access evil.com" but current validation logs show:
+From [notebooks/06_universal_targeted_attack.ipynb](notebooks/06_universal_targeted_attack.ipynb), targeting the phrase "access evil.com" trained on 600 files and validated on 150 files:
 
-- success_contains = 0.0%
-- success_exact = 0.0%
-- mean_snr = 29.3 dB
+| Metric | Result |
+| --- | ---: |
+| Training set size | 600 samples |
+| Validation set size | 150 samples |
+| success_contains (validation) | 0.0% |
+| success_exact (validation) | 0.0% |
+| Mean SNR | 29.3 dB |
 
-This is useful to mention in the presentation because it shows a realistic negative result: universal targeted attacks on Whisper are materially harder than untargeted universal degradation.
+Although the training loss decreased and train-set success rate rose as high as 70% during the optimization run, the learned perturbation did not generalize to the held-out 150-sample validation set. This pattern indicates the UCW optimization is overfitting the training distribution: the attack learns directions that fool specific training utterances rather than finding the shared structural direction needed for broad generalization.
+
+The 29.3 dB SNR is notably better than the per-sample CW attack (14.50 dB), confirming that the universal optimization maintains a tighter perturbation magnitude. The gap between training success and validation failure is the defining feature of this experiment and the clearest signal that universal targeted attacks on Whisper are a significantly harder problem than either per-sample targeted attacks or universal untargeted attacks.
+
+A partial checkpoint is preserved in [results/ucw_delta_working.pt](results/ucw_delta_working.pt) as a starting point for continued optimization. This is a realistic negative result that belongs in the final report: it shows explicitly where the boundary of the project's current capability lies.
 
 ## 9. Model Throughput and Demo
 
@@ -298,34 +315,54 @@ For the PowerPoint, a strong slide here would show:
 - a screenshot of the Gradio interface
 - one clean transcript beside the attacked transcript for the same captured audio
 
-## 10. Evaluation and Discussion
+## 10. Evaluation, Risks, and Limitations
 
 ### What worked well
 
-- The differentiable Whisper wrapper successfully enabled raw-waveform attacks.
-- PGD showed strong per-sample vulnerability.
-- UAP demonstrated that a reusable perturbation can generalize across many utterances.
-- CW confirmed that targeted phrase injection is possible in the white-box setting.
+- The differentiable Whisper wrapper successfully enabled raw-waveform gradient flow from the loss back to the input signal.
+- PGD showed strong per-sample vulnerability at a 90.0% success rate.
+- UAP demonstrated that a single reusable perturbation generalizes across multiple unseen utterances at 60.0% fooling rate.
+- Per-sample CW confirmed targeted phrase injection is feasible in the white-box setting with 100% success on the evaluation batch.
+- The UCW experiment produced a useful negative result that precisely quantifies the current gap between universal untargeted and universal targeted attacks on Whisper.
 
 ### What the results mean
 
-- Whisper is vulnerable to optimized digital perturbations even though it is robust to ordinary noise.
-- Universal perturbations are less powerful than per-sample attacks but more operationally interesting because they can be reused.
-- Targeted attacks are the most security-relevant but currently require louder perturbations in this implementation.
+- Whisper is vulnerable to optimized digital perturbations even though it is robust to ordinary noise, confirming the core hypothesis of Olivier & Raj (2023).
+- Universal perturbations demonstrate a structural vulnerability: the shared attack direction is learnable across diverse speakers, durations, and acoustic content.
+- Targeted attacks represent the most operationally dangerous failure mode because the adversary controls the output meaning, not merely its accuracy.
+- The UCW gap (overfitting on training, 0% on validation) provides a quantitative bound on the difficulty of the universal targeted problem at the current hyperparameter settings.
 
-### Main limitations
+### Risk description
 
-- Baseline WER is inflated by punctuation and text normalization mismatch.
-- Attack evaluation is not yet fully standardized across all notebooks.
-- The strongest attacks in this repo often operate below the desired imperceptibility range.
-- Universal targeted attack performance is still weak.
-- Most reported results are in the digital domain rather than over-the-air physical playback.
+The threat model throughout this project is a **white-box digital attacker** with full access to the Whisper model weights and the ability to inject an optimized audio perturbation into the pipeline before transcription occurs. Within this threat model, the project surfaces three concrete risk vectors:
+
+1. **Transcription poisoning at scale.** The UAP result shows that a single pre-computed perturbation can degrade the transcription of 60% of utterances across a diverse dataset without any per-sample re-optimization. This is operationally significant for batch transcription pipelines: an attacker who can inject a universal perturbation into a media file or a live stream can erode the reliability of an automated transcription archive without being detected on any individual file.
+
+2. **Phrase injection.** The CW result demonstrates that a 100% success rate for injecting a specific phrase is achievable on a small evaluation batch. If the pipeline downstream of Whisper treats transcription output as trusted input—for example in a voice-command interface, a meeting summarizer, or an LLM prompt router—a targeted perturbation becomes a prompt-injection vector at the audio layer. The phrase need not be audible to a casual listener to be transcribed and executed.
+
+3. **Universal phrase injection (current upper bound).** The UCW experiment shows that fully generalizable targeted injection does not yet work reliably with the current implementation, but the training-set success rate of up to 70% indicates the optimization objective is realistic. An attacker with more compute, better initialization, or a perceptual loss function could close this gap.
+
+All three risks are most acute in **fully automated pipelines** where human review of transcriptions does not occur before downstream action is taken.
+
+### Limitations
+
+- **Inflated baseline WER.** Whisper inserts punctuation not present in LibriSpeech ground truth, raising the pre-attack WER floor to 21.95%. Attack results should be read relative to this floor, not as absolute accuracy metrics.
+- **Inconsistent evaluation protocol.** PGD and UAP results measure transcript drift from the clean Whisper output; CW results measure success against a target phrase and WER against ground truth. Direct cross-method comparison requires a unified normalization step not yet applied uniformly across all notebooks.
+- **SNR below imperceptibility targets.** The ideal goal of SNR $\geq$ 35 dB is not met by the current PGD (19.45 dB) or CW (14.50 dB) results, limiting real-world stealth. The UAP achieves higher SNR but at the cost of a lower success rate.
+- **UCW generalization gap.** The universal targeted attack fails to generalize from training to validation, remaining at 0% validation success despite high training success, suggesting overfitting to the training distribution.
+- **Digital domain only.** All reported results are in the digital pipeline. Over-the-air attacks involve physical transduction, environmental noise, and microphone characteristics that would likely degrade the perturbation signal and reduce effectiveness.
+- **English and single model.** Results are limited to LibriSpeech test-clean English and the Whisper-base checkpoint. Transferability to other languages, larger Whisper variants, or other ASR architectures has not been evaluated.
+- **Small evaluation batches.** The targeted CW result (5 samples) and UAP validation (20 samples) are too small to draw statistically robust conclusions. Results on larger held-out sets could shift substantially.
 
 ## 11. Conclusion
 
-This capstone shows that Whisper-base can be attacked in three distinct ways: by degrading a single transcription, by learning a reusable universal perturbation, and by forcing a targeted phrase. The strongest current result is the targeted CW attack on a small evaluation batch, while the most capstone-relevant structural result is the untargeted universal perturbation because it demonstrates shared vulnerability across multiple utterances.
+This capstone demonstrates that OpenAI Whisper-base is vulnerable to adversarial perturbations across four distinct attack architectures: per-sample untargeted PGD, dataset-level universal UAP, per-sample targeted CW, and the exploratory universal targeted UCW. The results establish a hierarchy of difficulty: per-sample attacks are the easiest to optimize and produce the highest success rates; universal untargeted attacks generalize across speakers and content at a meaningful but lower rate; per-sample targeted attacks succeed reliably in the white-box setting but require loud perturbations; and universal targeted attacks reveal the current outer boundary of what is achievable — the optimization goal is realistic but generalization from training to validation remains unsolved.
 
-The project also surfaces the main open engineering question for future work: how far can attack success be pushed while keeping SNR in a genuinely imperceptible range and evaluating all attacks on a unified, ground-truth-normalized metric pipeline.
+The most practically significant finding is not the 100% success rate of the per-sample CW attack on five samples, but the 60% fooling rate of the universal perturbation across a diverse held-out set. A reusable attack direction that works on more than half of all utterances, without any per-sample tuning, represents a meaningful structural vulnerability rather than a case-specific exploit. Combined with the risk that Whisper is increasingly used as a trusted input layer for agentic and LLM pipelines, the practical stakes of this finding extend well beyond the academic adversarial robustness literature.
+
+The UCW experiment contributes a clear quantitative statement of difficulty: training-set targeted success reaches 70% during optimization while validation success remains at 0%, setting a concrete benchmark for future work to improve upon. The SNR advantage of the UCW perturbation (29.3 dB) relative to per-sample CW (14.50 dB) suggests that universal optimization at least produces stealthier perturbations, even when it fails to generalize targeted meaning.
+
+The project confirms the central claim of Olivier & Raj (2023): Whisper's robustness to ordinary noise does not carry over to adversarial noise. As ASR systems become the transduction layer between human speech and automated decision-making infrastructure, the vulnerabilities documented here represent a category of attack that should be considered by any team deploying Whisper or similar models in security-sensitive, real-time, or agentic contexts.
 
 ## 12. Suggested PowerPoint Flow
 
@@ -356,34 +393,35 @@ If this markdown is converted into slides, the most natural order is:
 
 ### How effective was the machine learning model at learning the task?
 
-This capstone is not a standard supervised training project in which a new model is fit from scratch. Whisper itself remains frozen throughout the experiments, so there is no conventional training accuracy or validation accuracy curve for the ASR model. Instead, the optimization targets are the adversarial perturbations. That means the closest analogs to learning curves in this project are:
+This capstone is not a standard supervised training project in which a new model is fit from scratch. Whisper itself remains frozen throughout the experiments, so there is no conventional training accuracy or validation accuracy curve for the ASR model. Instead, the optimization targets are the adversarial perturbations. The closest analogs to learning curves in this project are:
 
 - the UAP training history, which tracks fooling rate and average loss across 20 epochs
-- the universal targeted CW notebook, which tracks average loss and train success rate over 200 epochs
+- the UCW notebook, which tracks average loss and train success rate over the full training run on 600 samples
 
-The untargeted UAP results show partial but meaningful learning. The training notebook records a 20-epoch optimization run over 50 training samples, and the saved plot explicitly tracks increasing fooling rate alongside changing loss. The validation snapshot then shows a 60.0% fooling rate on 20 held-out samples, with 15.03% average transcript-drift WER and 6.12% CER. That pattern suggests the perturbation did learn a reusable attack direction, but not a dominant one. In other words, the UAP is effective but still incomplete.
+The untargeted UAP results show partial but meaningful learning. The training notebook records a 20-epoch optimization run over 50 training samples, and the saved plot explicitly tracks increasing fooling rate alongside changing loss. The validation snapshot shows a 60.0% fooling rate on 20 held-out samples, with 15.03% average transcript-drift WER and 6.12% CER. That pattern suggests the perturbation learned a reusable attack direction, but not a dominant one.
 
-The strongest evidence of overfitting appears in the universal targeted setting. In [notebooks/06_universal_targeted_attack.ipynb](notebooks/06_universal_targeted_attack.ipynb), the train success rate rises as high as 70.0% by epoch 51 while the average loss drops substantially, yet later evaluation still reports 0.0% success on the validation outputs. That is the clearest case in the project where the optimization appears to overfit the training batch or the attack objective rather than generalize to unseen samples.
+The strongest evidence of a generalization gap appears in the universal targeted setting. In [notebooks/06_universal_targeted_attack.ipynb](notebooks/06_universal_targeted_attack.ipynb), the train success rate rises as high as 70% during optimization while the average loss decreases substantially, yet post-training evaluation on the 150-sample validation set still shows 0.0% success. This is the clearest case in the project where optimization appears to overfit the training batch rather than find a generalizable targeted direction. The 29.3 dB SNR achieved by UCW is notably better than per-sample CW (14.50 dB), confirming that the perturbation magnitude is well-controlled even when attack semantics fail to transfer.
 
-For PGD and single-sample CW, overfitting is not the right frame because those attacks are intentionally optimized per utterance. Their high success rates show that the optimization routine is strong, but they do not represent generalization in the same way as UAP.
+For PGD and single-sample CW, overfitting is not the right frame because those attacks are intentionally optimized per utterance. Their high success rates (90% and 100% respectively) demonstrate that per-sample optimization is strong, but they do not represent generalization in the same sense as UAP or UCW.
 
 ### What evidence supports or disproves the research hypothesis?
 
-The central research question is whether Whisper is vulnerable to adversarial perturbations, especially reusable universal perturbations, in a digital white-box setting. The evidence supports that hypothesis, but with an important qualification about imperceptibility.
+The central research question is whether Whisper is vulnerable to adversarial perturbations, especially reusable universal perturbations, in a digital white-box setting. The evidence broadly supports that hypothesis, with important qualifications about imperceptibility and the harder universal targeted setting.
 
 Evidence supporting the hypothesis:
 
-- Clean baseline performance is strong enough to establish a meaningful reference point, with 21.95% WER and 5.35% CER on the chosen subset.
-- Untargeted PGD changes the transcription on 90.0% of evaluated samples, showing that Whisper is highly vulnerable to sample-specific perturbations.
-- The untargeted UAP reaches a 60.0% fooling rate on a held-out validation slice, which supports the claim that a shared perturbation can generalize beyond one utterance.
-- The targeted CW attack achieves 100% success on the 5-sample batch against the phrase "hello world," demonstrating that targeted transcription injection is feasible in this white-box regime.
+- Clean baseline performance establishes a meaningful reference: 21.95% WER and 5.35% CER on the chosen subset.
+- Untargeted PGD changes the transcription on 90.0% of evaluated samples, showing strong per-sample vulnerability.
+- The untargeted UAP reaches a 60.0% fooling rate on held-out samples, confirming that a shared perturbation generalizes across diverse utterances.
+- Per-sample CW achieves 100% targeted success on the 5-sample evaluation batch, confirming phrase injection is feasible in this white-box regime.
+- The UCW experiment shows training-set targeted success rates up to 70%, confirming that the targeted universal objective is learnable in principle.
 
 Evidence that qualifies or partially disproves the stronger version of the hypothesis:
 
-- The most successful attacks do not yet operate in the ideal 35 to 45 dB SNR range originally associated with imperceptible perturbations. PGD averages 19.45 dB and CW averages 14.50 dB, which means the current attacks are effective but often more audible than desired.
-- The universal targeted attack remains unsuccessful at evaluation time, with 0.0% success even when training metrics improve. That weakens any claim that one targeted universal perturbation is already practical in this implementation.
+- The most successful attacks do not yet operate in the ideal 35–45 dB SNR range. PGD averages 19.45 dB and per-sample CW averages 14.50 dB, meaning the current attacks are effective but often more audible than desired.
+- UCW validation success remains at 0.0% despite strong training performance, demonstrating that universal targeted generalization is not yet achieved in this implementation. This weakens any strong claim that a single universal targeted perturbation is practically deployable.
 
-Taken together, the project strongly supports the claim that Whisper is attackable, moderately supports the claim that universal untargeted perturbations exist for this system, and does not yet support a strong claim that universal targeted perturbations are robustly deployable.
+Taken together, the project strongly supports the claim that Whisper is attackable, moderately supports the claim that universal untargeted perturbations exist for this system, and does not yet support a strong claim that universal targeted perturbations are robustly generalizable.
 
 ### How does model performance affect the application of the model to the problem?
 
@@ -419,14 +457,36 @@ In common use cases, the system is good enough to demonstrate the attack concept
 
 ## Future Work
 
-### Improving the weakest results
+### 1. Closing the UCW generalization gap
 
-The clearest improvement target is the tradeoff between attack strength and imperceptibility. In the current results, the strongest PGD and CW attacks often succeed at relatively low SNR, while the universal targeted setting remains ineffective. The next step is to improve the optimization objective and tuning process so attack success is maintained while perturbations remain less audible, especially for targeted and universal targeted attacks.
+The UCW experiment is the most actionable improvement target. The training success rate (up to 70%) confirms that the CW objective is differentiable and learnable in the universal setting; the zero validation success rate points to an optimization or regularization problem rather than a fundamental ceiling. Specific next steps:
 
-### Making the system more general and more reliable
+- **Curriculum training**: start with the easiest-to-fool samples and gradually include harder ones rather than sampling uniformly, to prevent early overfitting to a narrow cluster of utterances.
+- **Perceptual loss augmentation**: add a psychoacoustic penalty (e.g., Qin et al.'s imperceptibility loss based on the SII model) to the CW objective so the optimizer is discouraged from relying on narrow high-energy frequency bands that correlate with the training corpus but do not generalize.
+- **Larger training sets**: the current training split is 600 files. Prior UAP literature (Neekhara et al.) found generalization improves substantially with more diverse training coverage. Scaling to the full 2,620-file test-clean set or incorporating a training-clean split would directly address the diversity gap.
+- **Warm-starting from the UAP checkpoint**: the saved untargeted universal perturbation in [results/universal_perturbation_v.pt](results/universal_perturbation_v.pt) already captures a direction that generalizes across the dataset. Initializing UCW from that checkpoint rather than random noise may accelerate convergence toward a generalizing targeted direction.
 
-This work becomes more broadly useful if evaluation is standardized across all attack types. Future experiments should use one consistent protocol for text normalization, ground-truth comparison, success criteria, and perceptual quality metrics so PGD, UAP, and CW results can be compared directly. The pipeline should also be tested beyond LibriSpeech test-clean, including cross-dataset and cross-language settings, and the live demo should be improved with lower latency and a cleaner user experience so it behaves more like a deployable prototype than a proof of concept.
+### 2. Improving imperceptibility across all attack families
 
-### Research directions to explore
+None of the current attack results meet the original 35–45 dB imperceptibility target at full effectiveness. PGD averages 19.45 dB and per-sample CW averages 14.50 dB. Targeted improvement strategies:
 
-The strongest research opportunities are in transferability and realism. Important next areas include over-the-air attacks, multilingual robustness, better universal targeted optimization, and perceptually informed loss functions that align more closely with human listening. These directions would help determine whether the vulnerabilities shown here remain meaningful outside a controlled white-box, single-dataset English setting.
+- **Perceptually-weighted $\epsilon$ schedules**: rather than a flat $L_\infty$ bound, use a frequency-dependent constraint that allows larger perturbations in frequency bands where human hearing is less sensitive (e.g., above 8 kHz for speech).
+- **SNR-constrained reporting**: report results at fixed SNR budgets (30, 35, 40, 45 dB) by re-running attacks with smaller $\epsilon$ and more iterations, following the design described in the training protocol section but not yet fully executed across all attack families.
+- **Adversarial audio quality metrics**: replace squared $L_2$ with PESQ or STOI-based loss terms to optimize directly for perceptual similarity rather than mean-squared waveform distance.
+
+### 3. Standardizing evaluation
+
+A single unified evaluation protocol would make cross-method comparison valid. Required steps:
+
+- Apply text normalization (lowercase, strip punctuation) uniformly before computing WER and CER for all experiments.
+- Report all attack results against LibriSpeech ground-truth transcripts rather than against the clean Whisper output, so all fooling rates are on a common reference.
+- Expand evaluation batch sizes: CW should be evaluated on at least 50 samples and UAP on at least 100 to produce statistically stable estimates.
+
+### 4. Transferability and physical realism
+
+All current results operate in the digital domain with direct tensor injection. Operationally meaningful attacks require:
+
+- **Over-the-air evaluation**: play adversarial audio through a speaker and record it with a microphone before passing to Whisper. Room impulse response and microphone frequency response will distort the perturbation; the key question is how much SNR budget is lost in transduction.
+- **Transfer to larger Whisper variants**: test whether perturbations optimized against Whisper-base transfer to Whisper-small, Whisper-medium, or Whisper-large without re-optimization, which would indicate architecture-independent vulnerability directions.
+- **Multilingual evaluation**: test the universal perturbation on CommonVoice non-English subsets to determine whether the attack direction is language-dependent or exploits language-agnostic spectrogram features.
+- **Black-box transfer**: evaluate whether perturbations transfer to wav2vec 2.0 or other Transformer-based ASR architectures to assess whether the structural vulnerability is Whisper-specific.
