@@ -3,6 +3,18 @@ Shared utilities for adversarial attack implementations.
 """
 import torch
 import numpy as np
+import jiwer
+
+_NORMALIZER = jiwer.Compose([
+    jiwer.ToLowerCase(),
+    jiwer.RemovePunctuation(),
+    jiwer.RemoveMultipleSpaces(),
+    jiwer.Strip(),
+])
+
+
+def normalize_text(text: str) -> str:
+    return _NORMALIZER(text)
 
 
 def tile_to_length(delta: torch.Tensor, target_len: int) -> torch.Tensor:
