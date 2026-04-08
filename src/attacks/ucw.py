@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 import src.data as data_loader
 from .base import BaseUniversalAttack
-from .utils import prepare_audio
+from .utils import prepare_audio, tile_to_length
 
 
 class UniversalCWAttack(BaseUniversalAttack):
@@ -25,6 +25,7 @@ class UniversalCWAttack(BaseUniversalAttack):
         learning_rate: float = 5e-4,
         device: str = "cpu",
         noise_init: float = 1e-4,
+        warm_start_path: str | None = None,
     ):
         self.model         = whisper_model
         self.target_phrase = target_phrase
@@ -34,9 +35,23 @@ class UniversalCWAttack(BaseUniversalAttack):
         self.lr_init       = learning_rate
         self.device        = device
 
-        # Initialize δ within L_inf epsilon-ball
-        self.delta = (torch.randn(1, uap_length, device=device) * noise_init).clamp(-epsilon, epsilon)
-        self.delta.requires_grad_(True)
+        self._initialize_delta(warm_start_path, noise_init)
+
+    
+    def _initialize_delta(self, warm_start_path: str | None, noise_init: float):
+        """Initialize the universal perturbation δ."""
+        if warm_start_path:
+            try:
+                loaded = torch.load(warm_start_path, map_location=self.device)
+                self.delta = loaded.get("delta", torch.zeros(self.uap_length, device=self.device))
+                print(f"Loaded warm start δ from {warm_start_path}")
+            except Exception as e:
+                print(f"Failed to load warm start δ: {e}. Initializing randomly.")
+                self.delta = torch.randn(self.uap_length, device=self.device) * noise_init
+        else:
+            self.delta = torch.randn(self.uap_length, device=self.device) * noise_init
+        
+        self.delta.requires_grad = True
 
     def _cw_loss(self, audio: torch.Tensor) -> torch.Tensor:
         """Compute targeted CE loss for a single audio sample."""
