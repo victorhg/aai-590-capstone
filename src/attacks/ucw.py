@@ -43,7 +43,10 @@ class UniversalCWAttack(BaseUniversalAttack):
         if warm_start_path:
             try:
                 loaded = torch.load(warm_start_path, map_location=self.device)
-                self.delta = loaded.get("delta", torch.zeros(self.uap_length, device=self.device))
+                if isinstance(loaded, dict):
+                    self.delta = loaded.get("delta", torch.zeros(self.uap_length, device=self.device))
+                else:
+                    self.delta = loaded
                 print(f"Loaded warm start δ from {warm_start_path}")
             except Exception as e:
                 print(f"Failed to load warm start δ: {e}. Initializing randomly.")
