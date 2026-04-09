@@ -153,16 +153,6 @@ class WhisperASRWithAttack(nn.Module):
 
     
     def get_encoder_output(self, audio_tensor):
-        """
-        Get encoder output for computing attack loss.
-        This is used when you need gradients through the encoder.
-        
-        Args:
-            audio_tensor: Raw audio waveform with requires_grad=True
-            
-        Returns:
-            encoder_output: Encoder hidden states (batch, 1500, hidden_dim)
-        """
 
         audio_tensor = self._preprocess_audio(audio_tensor, requires_grad=True)        
         log_mels = self._compute_mel_spectrogram(audio_tensor)

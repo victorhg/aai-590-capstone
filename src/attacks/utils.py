@@ -54,16 +54,6 @@ def prepare_audio(audio: torch.Tensor, device: str) -> torch.Tensor:
 
 
 def compute_snr(original: np.ndarray, perturbed: np.ndarray) -> float:
-    """
-    Compute Signal-to-Noise Ratio (SNR) in dB.
-    
-    Args:
-        original: Clean audio (numpy array).
-        perturbed: Adversarial audio (numpy array).
-        
-    Returns:
-        SNR in dB.
-    """
     original = original.astype(np.float32)
     perturbed = perturbed.astype(np.float32)
     
